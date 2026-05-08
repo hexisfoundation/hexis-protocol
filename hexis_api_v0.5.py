@@ -1,45 +1,44 @@
-# “””
+"""
 HEXIS Trust API v0.5
-
+=====================
 Standalone Trust Verification for AI Economy
 
 Changes from v0.1:
-
-- SQLite persistence - data survives reboot/crash
-- API key authentication
-- Usage tracking per key
-- Rate limiting
-- /docs endpoint
+  - SQLite persistence - data survives reboot/crash
+  - API key authentication
+  - Usage tracking per key
+  - Rate limiting
+  - /docs endpoint
 
 ENDPOINTS:
-GET  /                          UI
-GET  /trust/{actor_id}          Trust score + x402 headers
-POST /integrity/submit          Submit integrity event
-GET  /integrity/{actor_id}      History
-GET  /leaderboard               Top actors
-GET  /status                    System status
-GET  /docs                      API documentation
-POST /keys/create               Create API key (admin)
-GET  /usage/{key_prefix}        Usage stats
+    GET  /                          UI
+    GET  /trust/{actor_id}          Trust score + x402 headers
+    POST /integrity/submit          Submit integrity event
+    GET  /integrity/{actor_id}      History
+    GET  /leaderboard               Top actors
+    GET  /status                    System status
+    GET  /docs                      API documentation
+    POST /keys/create               Create API key (admin)
+    GET  /usage/{key_prefix}        Usage stats
 
-CHẠY:
-pip install flask cryptography
-python3 hexis_api.py
+RUN:
+    pip install flask cryptography
+    python3 hexis_api.py
 
 DATA:
-Lưu tại: /opt/hexis_newflow/hexis.db (SQLite)
-Không mất khi reboot hay crash
-“””
+    Stored at: /opt/hexis_newflow/hexis.db (SQLite)
+    Survives reboot and crash
+"""
 
 import json, math, hashlib, time, os, sqlite3, secrets
 from datetime import datetime, timezone
 from functools import wraps
 from flask import Flask, request, jsonify, render_template_string, g
 
-app = Flask(**name**)
+app = Flask(__name__)
 
-DB_PATH    = os.environ.get(“HEXIS_DB”, “/opt/hexis_newflow/hexis.db”)
-ADMIN_KEY  = os.environ.get(“HEXIS_ADMIN_KEY”, “hexis-admin-2026”)
+DB_PATH    = os.environ.get("HEXIS_DB", "/opt/hexis_newflow/hexis.db")
+ADMIN_KEY  = os.environ.get("HEXIS_ADMIN_KEY", "hexis-admin-2026")
 FREE_LIMIT = 1000
 PORT       = 8401
 
@@ -48,181 +47,178 @@ WALLET_CAP    =     10_000
 REFERENCE_GDP =     12_000
 
 GDP_PER_CAPITA = {
-“US”:80000,“GB”:48000,“DE”:52000,“JP”:34000,“KR”:33000,
-“SG”:88000,“FR”:44000,“CA”:55000,“CN”:13000,“BR”:9000,
-“RU”:14000,“IN”:2500,“VN”:4200,“ID”:4900,“PH”:3700,
-“TH”:7000,“MY”:12000,“NG”:2200,“KE”:2100,“ZA”:6000,
-“AU”:65000,“NZ”:48000,“SE”:56000,“NO”:100000,“DEFAULT”:12000,
+    "US":80000,"GB":48000,"DE":52000,"JP":34000,"KR":33000,
+    "SG":88000,"FR":44000,"CA":55000,"CN":13000,"BR":9000,
+    "RU":14000,"IN":2500,"VN":4200,"ID":4900,"PH":3700,
+    "TH":7000,"MY":12000,"NG":2200,"KE":2100,"ZA":6000,
+    "AU":65000,"NZ":48000,"SE":56000,"NO":100000,"DEFAULT":12000,
 }
 
 GRADE_THRESHOLDS = [
-(0.05000,“High”,1.0),(0.00500,“Moderate”,1.5),
-(0.00100,“Low”,3.0),(0.00010,“Minimal”,5.0),
+    (0.05000,"High",1.0),(0.00500,"Moderate",1.5),
+    (0.00100,"Low",3.0),(0.00010,"Minimal",5.0),
 ]
 
 # Sensitivity tier - higher tier = more temptation to betray = more HEXIS earned
-
 # when honest. Multiplier applied to effective gain in Betrayal Opportunity (BO).
-
 SENSITIVITY_TIERS = {
-1: (“Public”,       1.0),    # Public data - no privacy/compliance risk
-2: (“Internal”,     5.0),    # Internal company data
-3: (“Confidential”, 20.0),   # Trade secrets, customer PII
-4: (“Regulated”,    100.0),  # Medical, financial, legal - max temptation
+    1: ("Public",       1.0),    # Public data - no privacy/compliance risk
+    2: ("Internal",     5.0),    # Internal company data
+    3: ("Confidential", 20.0),   # Trade secrets, customer PII
+    4: ("Regulated",    100.0),  # Medical, financial, legal - max temptation
 }
 
 def get_db():
-if “db” not in g:
-g.db = sqlite3.connect(DB_PATH)
-g.db.row_factory = sqlite3.Row
-g.db.execute(“PRAGMA journal_mode=WAL”)
-return g.db
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_PATH)
+        g.db.row_factory = sqlite3.Row
+        g.db.execute("PRAGMA journal_mode=WAL")
+    return g.db
 
 @app.teardown_appcontext
 def close_db(e=None):
-db = g.pop(“db”, None)
-if db: db.close()
+    db = g.pop("db", None)
+    if db: db.close()
 
 def init_db():
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-c = sqlite3.connect(DB_PATH)
-c.executescript(”””
-CREATE TABLE IF NOT EXISTS actors(
-actor_id TEXT PRIMARY KEY, country TEXT DEFAULT ‘DEFAULT’,
-hexis_total REAL DEFAULT 0.0, event_count INTEGER DEFAULT 0,
-first_seen TEXT, last_seen TEXT);
-CREATE TABLE IF NOT EXISTS events(
-id TEXT PRIMARY KEY, actor_id TEXT NOT NULL,
-hexis_mined REAL, hexis_total REAL, source TEXT,
-country TEXT, metadata TEXT DEFAULT ‘{}’, ts TEXT);
-CREATE TABLE IF NOT EXISTS api_keys(
-key_hash TEXT PRIMARY KEY, key_prefix TEXT,
-label TEXT, tier TEXT DEFAULT ‘free’,
-daily_limit INTEGER DEFAULT 1000,
-calls_today INTEGER DEFAULT 0,
-calls_total INTEGER DEFAULT 0,
-last_reset TEXT, created_at TEXT, active INTEGER DEFAULT 1);
-CREATE INDEX IF NOT EXISTS idx_ev_actor ON events(actor_id);
-“””)
-c.commit(); c.close()
-print(f”[DB] {DB_PATH}”)
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    c = sqlite3.connect(DB_PATH)
+    c.executescript("""
+        CREATE TABLE IF NOT EXISTS actors(
+            actor_id TEXT PRIMARY KEY, country TEXT DEFAULT 'DEFAULT',
+            hexis_total REAL DEFAULT 0.0, event_count INTEGER DEFAULT 0,
+            first_seen TEXT, last_seen TEXT);
+        CREATE TABLE IF NOT EXISTS events(
+            id TEXT PRIMARY KEY, actor_id TEXT NOT NULL,
+            hexis_mined REAL, hexis_total REAL, source TEXT,
+            country TEXT, metadata TEXT DEFAULT '{}', ts TEXT);
+        CREATE TABLE IF NOT EXISTS api_keys(
+            key_hash TEXT PRIMARY KEY, key_prefix TEXT,
+            label TEXT, tier TEXT DEFAULT 'free',
+            daily_limit INTEGER DEFAULT 1000,
+            calls_today INTEGER DEFAULT 0,
+            calls_total INTEGER DEFAULT 0,
+            last_reset TEXT, created_at TEXT, active INTEGER DEFAULT 1);
+        CREATE INDEX IF NOT EXISTS idx_ev_actor ON events(actor_id);
+    """)
+    c.commit(); c.close()
+    print(f"[DB] {DB_PATH}")
 
 def context_multiplier(country):
-gdp = GDP_PER_CAPITA.get(country.upper(), 12000)
-return max(0.5, min(2.0, math.sqrt(REFERENCE_GDP / gdp)))
+    gdp = GDP_PER_CAPITA.get(country.upper(), 12000)
+    return max(0.5, min(2.0, math.sqrt(REFERENCE_GDP / gdp)))
 
 def get_grade(score):
-for t, g, c in GRADE_THRESHOLDS:
-if score >= t: return g, c
-return “Unverified”, 10.0
+    for t, g, c in GRADE_THRESHOLDS:
+        if score >= t: return g, c
+    return "Unverified", 10.0
 
 def mine_hexis(s, bo, w, tdr, ti, country):
-c = context_multiplier(country)
-return round(max(0,min(1,s))*max(0,min(1,bo))*max(0,min(1,w))*
-max(0,min(1,tdr))*max(0,min(1,ti))*c, 8)
+    c = context_multiplier(country)
+    return round(max(0,min(1,s))*max(0,min(1,bo))*max(0,min(1,w))*
+                 max(0,min(1,tdr))*max(0,min(1,ti))*c, 8)
 
 def compute_job_hexis(fee, country, sensitivity_tier=1, prob=0.95):
-# Higher sensitivity tier -> bigger gain if data was leaked/misused
-# Worker resists this temptation -> earns proportionally more HEXIS
-tier_label, tier_mult = SENSITIVITY_TIERS.get(sensitivity_tier,
-SENSITIVITY_TIERS[1])
-effective_gain = fee * tier_mult
-bo = math.log(effective_gain*(1-prob)+1)/math.log(1_000_000_000+1)
-w  = math.log(7)/math.log(1_000_001)
-return mine_hexis(1.0, bo, w, 0.05, 1.0, country)
+    # Higher sensitivity tier -> bigger gain if data was leaked/misused
+    # Worker resists this temptation -> earns proportionally more HEXIS
+    tier_label, tier_mult = SENSITIVITY_TIERS.get(sensitivity_tier,
+                                                   SENSITIVITY_TIERS[1])
+    effective_gain = fee * tier_mult
+    bo = math.log(effective_gain*(1-prob)+1)/math.log(1_000_000_000+1)
+    w  = math.log(7)/math.log(1_000_001)
+    return mine_hexis(1.0, bo, w, 0.05, 1.0, country)
 
 def hash_key(k): return hashlib.sha256(k.encode()).hexdigest()
 
 def check_api_key(key):
-db = get_db()
-row = db.execute(“SELECT * FROM api_keys WHERE key_hash=? AND active=1”,
-(hash_key(key),)).fetchone()
-if not row: return None
-today = datetime.now(timezone.utc).strftime(”%Y-%m-%d”)
-if row[“last_reset”] != today:
-db.execute(“UPDATE api_keys SET calls_today=0,last_reset=? WHERE key_hash=?”,
-(today, hash_key(key)))
-db.commit()
-row = db.execute(“SELECT * FROM api_keys WHERE key_hash=?”,
-(hash_key(key),)).fetchone()
-return dict(row)
+    db = get_db()
+    row = db.execute("SELECT * FROM api_keys WHERE key_hash=? AND active=1",
+                     (hash_key(key),)).fetchone()
+    if not row: return None
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if row["last_reset"] != today:
+        db.execute("UPDATE api_keys SET calls_today=0,last_reset=? WHERE key_hash=?",
+                   (today, hash_key(key)))
+        db.commit()
+        row = db.execute("SELECT * FROM api_keys WHERE key_hash=?",
+                         (hash_key(key),)).fetchone()
+    return dict(row)
 
 def require_key_or_free(f):
-@wraps(f)
-def decorated(*args, **kwargs):
-key = (request.headers.get(“X-Hexis-Key”) or
-request.args.get(“key”,””))
-if key:
-info = check_api_key(key)
-if not info:
-return jsonify({“error”:“Invalid API key”}), 401
-if info[“calls_today”] >= info[“daily_limit”]:
-return jsonify({“error”:“Daily limit reached”,
-“limit”:info[“daily_limit”]}), 429
-db = get_db()
-db.execute(“UPDATE api_keys SET calls_today=calls_today+1,”
-“calls_total=calls_total+1 WHERE key_hash=?”,
-(hash_key(key),))
-db.commit()
-request.key_info = info
-else:
-request.key_info = {“tier”:“free”,“key_prefix”:“free”}
-return f(*args, **kwargs)
-return decorated
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = (request.headers.get("X-Hexis-Key") or
+               request.args.get("key",""))
+        if key:
+            info = check_api_key(key)
+            if not info:
+                return jsonify({"error":"Invalid API key"}), 401
+            if info["calls_today"] >= info["daily_limit"]:
+                return jsonify({"error":"Daily limit reached",
+                                "limit":info["daily_limit"]}), 429
+            db = get_db()
+            db.execute("UPDATE api_keys SET calls_today=calls_today+1,"
+                       "calls_total=calls_total+1 WHERE key_hash=?",
+                       (hash_key(key),))
+            db.commit()
+            request.key_info = info
+        else:
+            request.key_info = {"tier":"free","key_prefix":"free"}
+        return f(*args, **kwargs)
+    return decorated
 
 def db_get_trust(actor_id):
-db  = get_db()
-row = db.execute(“SELECT * FROM actors WHERE actor_id=?”,(actor_id,)).fetchone()
-if not row:
-return {“actor_id”:actor_id,“hexis_total”:0.0,“grade”:“Unverified”,
-“event_count”:0,“collateral_mult”:10.0,“x402_accept”:False,
-“x402_headers”:{“X-Hexis-Score”:“0.000000”,“X-Hexis-Grade”:“Unverified”,
-“X-Hexis-Accept”:“False”,“X-Hexis-Collateral-Mult”:“10.0”,
-“X-Hexis-Records”:“0”},
-“message”:“No integrity records. Submit events to build trust.”}
-score = row[“hexis_total”]
-grade,coll = get_grade(score)
-accept = score >= 0.00010
-return {“actor_id”:actor_id,“hexis_total”:round(score,6),
-“grade”:grade,“event_count”:row[“event_count”],
-“collateral_mult”:coll,“x402_accept”:accept,
-“country”:row[“country”],“first_seen”:row[“first_seen”],
-“last_seen”:row[“last_seen”],
-“x402_headers”:{“X-Hexis-Score”:f”{score:.6f}”,
-“X-Hexis-Grade”:grade,“X-Hexis-Accept”:str(accept),
-“X-Hexis-Collateral-Mult”:str(coll),
-“X-Hexis-Records”:str(row[“event_count”])}}
+    db  = get_db()
+    row = db.execute("SELECT * FROM actors WHERE actor_id=?",(actor_id,)).fetchone()
+    if not row:
+        return {"actor_id":actor_id,"hexis_total":0.0,"grade":"Unverified",
+                "event_count":0,"collateral_mult":10.0,"x402_accept":False,
+                "x402_headers":{"X-Hexis-Score":"0.000000","X-Hexis-Grade":"Unverified",
+                "X-Hexis-Accept":"False","X-Hexis-Collateral-Mult":"10.0",
+                "X-Hexis-Records":"0"},
+                "message":"No integrity records. Submit events to build trust."}
+    score = row["hexis_total"]
+    grade,coll = get_grade(score)
+    accept = score >= 0.00010
+    return {"actor_id":actor_id,"hexis_total":round(score,6),
+            "grade":grade,"event_count":row["event_count"],
+            "collateral_mult":coll,"x402_accept":accept,
+            "country":row["country"],"first_seen":row["first_seen"],
+            "last_seen":row["last_seen"],
+            "x402_headers":{"X-Hexis-Score":f"{score:.6f}",
+            "X-Hexis-Grade":grade,"X-Hexis-Accept":str(accept),
+            "X-Hexis-Collateral-Mult":str(coll),
+            "X-Hexis-Records":str(row["event_count"])}}
 
 def db_record_event(actor_id, hexis, country, source, metadata):
-db  = get_db()
-now = datetime.now(timezone.utc).isoformat()
-ex  = db.execute(“SELECT hexis_total FROM actors WHERE actor_id=?”,
-(actor_id,)).fetchone()
-if ex:
-new = min(ex[“hexis_total”]+hexis, WALLET_CAP)
-db.execute(“UPDATE actors SET hexis_total=?,event_count=event_count+1,”
-“last_seen=?,country=? WHERE actor_id=?”,
-(new,now,country,actor_id))
-else:
-new = min(hexis, WALLET_CAP)
-db.execute(“INSERT INTO actors VALUES(?,?,?,1,?,?)”,
-(actor_id,country,new,now,now))
-eid = hashlib.sha256(f”{actor_id}{time.time()}”.encode()).hexdigest()[:16]
-db.execute(“INSERT INTO events VALUES(?,?,?,?,?,?,?,?)”,
-(eid,actor_id,hexis,new,source,country,json.dumps(metadata),now))
-db.commit()
-return eid, new
+    db  = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    ex  = db.execute("SELECT hexis_total FROM actors WHERE actor_id=?",
+                     (actor_id,)).fetchone()
+    if ex:
+        new = min(ex["hexis_total"]+hexis, WALLET_CAP)
+        db.execute("UPDATE actors SET hexis_total=?,event_count=event_count+1,"
+                   "last_seen=?,country=? WHERE actor_id=?",
+                   (new,now,country,actor_id))
+    else:
+        new = min(hexis, WALLET_CAP)
+        db.execute("INSERT INTO actors VALUES(?,?,?,1,?,?)",
+                   (actor_id,country,new,now,now))
+    eid = hashlib.sha256(f"{actor_id}{time.time()}".encode()).hexdigest()[:16]
+    db.execute("INSERT INTO events VALUES(?,?,?,?,?,?,?,?)",
+               (eid,actor_id,hexis,new,source,country,json.dumps(metadata),now))
+    db.commit()
+    return eid, new
 
 def db_stats():
-db = get_db()
-a = db.execute(“SELECT COUNT(*) as n FROM actors”).fetchone()[“n”]
-e = db.execute(“SELECT COUNT(*) as n FROM events”).fetchone()[“n”]
-m = db.execute(“SELECT COALESCE(SUM(hexis_mined),0) as s FROM events”).fetchone()[“s”]
-return a, e, round(m,6)
+    db = get_db()
+    a = db.execute("SELECT COUNT(*) as n FROM actors").fetchone()["n"]
+    e = db.execute("SELECT COUNT(*) as n FROM events").fetchone()["n"]
+    m = db.execute("SELECT COALESCE(SUM(hexis_mined),0) as s FROM events").fetchone()["s"]
+    return a, e, round(m,6)
 
-UI = “””<!DOCTYPE html><html lang="en"><head>
+UI = """<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-
 <title>HEXIS Trust API</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Courier New',monospace;background:#0a0a0a;color:#e0e0e0;min-height:100vh;padding:28px 20px}
@@ -247,7 +243,7 @@ pre{background:#0d0d0d;padding:14px;border-radius:6px;font-size:.76rem;
 a{color:#4fc}
 </style></head><body>
 <h1>HEXIS x Trust API</h1>
-<p class="sub">Proof of Integrity v0.5 · hexisfoundation.org · <a href="/docs">docs</a></p>
+<p class="sub">Proof of Integrity v0.5 - hexisfoundation.org - <a href="/docs">docs</a></p>
 <div class="card"><h2>Network</h2>
   <div class="stat"><div class="val">{{actors}}</div><div class="lbl">Actors</div></div>
   <div class="stat"><div class="val">{{events}}</div><div class="lbl">Events</div></div>
@@ -302,9 +298,8 @@ async function submitEvent(){
 }
 </script></body></html>"""
 
-DOCS_HTML = “””<!DOCTYPE html><html><head>
+DOCS_HTML = """<!DOCTYPE html><html><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-
 <title>HEXIS API Docs</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Courier New',monospace;background:#0a0a0a;color:#e0e0e0;
@@ -322,7 +317,7 @@ a{color:#4fc;text-decoration:none}
 .sub{color:#666;font-size:.8rem;margin-bottom:24px}
 </style></head><body>
 <h1>HEXIS Trust API - Docs</h1>
-<p class="sub">v0.2 · <a href="mailto:contact@hexisfoundation.org">contact@hexisfoundation.org</a> · <a href="/"><- Back</a></p>
+<p class="sub">v0.2 - <a href="mailto:contact@hexisfoundation.org">contact@hexisfoundation.org</a> - <a href="/"><- Back</a></p>
 
 <h2>Overview</h2>
 <p>HEXIS provides trust verification for AI agents and compute workers. One call returns a trust score with x402-compatible headers ready to use in payment flows.</p>
@@ -376,166 +371,166 @@ Unverified  < 0.00010  collateral 10.0x</pre>
 const data = await trust.json();
 
 if (data.x402_accept) {
-// Safe to proceed
-// Apply collateral: data.collateral_mult
+  // Safe to proceed
+  // Apply collateral: data.collateral_mult
 }</pre>
 
 <h2>Integration - Python</h2>
 <pre>import requests
 
 def check_trust(actor_id, api_key=None):
-headers = {‘X-Hexis-Key’: api_key} if api_key else {}
-r = requests.get(
-f’http://174.138.9.102:8401/trust/{actor_id}’,
-headers=headers
-)
-return r.json()
+    headers = {'X-Hexis-Key': api_key} if api_key else {}
+    r = requests.get(
+        f'http://174.138.9.102:8401/trust/{actor_id}',
+        headers=headers
+    )
+    return r.json()
 
-trust = check_trust(‘my-agent-001’)
-print(trust[‘grade’], trust[‘hexis_total’])</pre>
+trust = check_trust('my-agent-001')
+print(trust['grade'], trust['hexis_total'])</pre>
 
 <h2>Geographic Justice</h2>
 <p>Same honest behavior earns more HEXIS in lower-GDP countries.
 Vietnam (C~1.69) earns ~3.4x more than US (C~0.5) for the same job.
 Geography is not a tax on integrity.</p>
 
-<p style="margin-top:32px"><a href="/">Back to API</a> ·
-<a href="mailto:contact@hexisfoundation.org">contact@hexisfoundation.org</a> ·
+<p style="margin-top:32px"><a href="/">Back to API</a> -
+<a href="mailto:contact@hexisfoundation.org">contact@hexisfoundation.org</a> -
 <a href="https://hexisfoundation.org">hexisfoundation.org</a></p>
 </body></html>"""
 
-@app.route(”/”)
+@app.route("/")
 def index():
-a,e,m = db_stats()
-return render_template_string(UI, actors=a, events=e, mined=m)
+    a,e,m = db_stats()
+    return render_template_string(UI, actors=a, events=e, mined=m)
 
-@app.route(”/docs”)
+@app.route("/docs")
 def docs():
-return DOCS_HTML
+    return DOCS_HTML
 
-@app.route(”/trust/<actor_id>”)
+@app.route("/trust/<actor_id>")
 @require_key_or_free
 def get_trust(actor_id):
-data = db_get_trust(actor_id)
-resp = jsonify(data)
-for k,v in data[“x402_headers”].items():
-resp.headers[k] = v
-return resp
+    data = db_get_trust(actor_id)
+    resp = jsonify(data)
+    for k,v in data["x402_headers"].items():
+        resp.headers[k] = v
+    return resp
 
-@app.route(”/integrity/submit”, methods=[“POST”])
+@app.route("/integrity/submit", methods=["POST"])
 @require_key_or_free
 def submit_integrity():
-body     = request.get_json(silent=True) or {}
-actor_id = body.get(“actor_id”,””).strip()
-country  = body.get(“country”,“DEFAULT”).upper()
-fee      = float(body.get(“fee_amount”,50))
-source   = body.get(“source”,“manual”)
-metadata = body.get(“metadata”,{})
-if not actor_id:
-return jsonify({“error”:“actor_id required”}), 400
-if source == “compute_job”:
-tier = int(body.get(“sensitivity_tier”, 1))
-if tier < 1 or tier > 4:
-return jsonify({“error”:“sensitivity_tier must be 1-4”}), 400
-hexis = compute_job_hexis(fee, country, tier)
-metadata[“sensitivity_tier”]  = tier
-metadata[“sensitivity_label”] = SENSITIVITY_TIERS[tier][0]
-else:
-hexis = mine_hexis(
-float(body.get(“sacrifice”,0.8)),
-float(body.get(“betrayal_opp”,0.2)),
-float(body.get(“witness”,0.3)),
-float(body.get(“tdr”,0.1)),
-float(body.get(“timing”,0.9)),
-country)
-eid, new_total = db_record_event(actor_id,hexis,country,source,metadata)
-grade, coll    = get_grade(new_total)
-return jsonify({“status”:“mined”,“actor_id”:actor_id,
-“hexis_mined”:hexis,“hexis_total”:round(new_total,6),
-“grade”:grade,“collateral_mult”:coll,“event_id”:eid,
-“message”:“Honest behavior = trust credential earned.”})
+    body     = request.get_json(silent=True) or {}
+    actor_id = body.get("actor_id","").strip()
+    country  = body.get("country","DEFAULT").upper()
+    fee      = float(body.get("fee_amount",50))
+    source   = body.get("source","manual")
+    metadata = body.get("metadata",{})
+    if not actor_id:
+        return jsonify({"error":"actor_id required"}), 400
+    if source == "compute_job":
+        tier = int(body.get("sensitivity_tier", 1))
+        if tier < 1 or tier > 4:
+            return jsonify({"error":"sensitivity_tier must be 1-4"}), 400
+        hexis = compute_job_hexis(fee, country, tier)
+        metadata["sensitivity_tier"]  = tier
+        metadata["sensitivity_label"] = SENSITIVITY_TIERS[tier][0]
+    else:
+        hexis = mine_hexis(
+            float(body.get("sacrifice",0.8)),
+            float(body.get("betrayal_opp",0.2)),
+            float(body.get("witness",0.3)),
+            float(body.get("tdr",0.1)),
+            float(body.get("timing",0.9)),
+            country)
+    eid, new_total = db_record_event(actor_id,hexis,country,source,metadata)
+    grade, coll    = get_grade(new_total)
+    return jsonify({"status":"mined","actor_id":actor_id,
+                    "hexis_mined":hexis,"hexis_total":round(new_total,6),
+                    "grade":grade,"collateral_mult":coll,"event_id":eid,
+                    "message":"Honest behavior = trust credential earned."})
 
-@app.route(”/integrity/<actor_id>”)
+@app.route("/integrity/<actor_id>")
 @require_key_or_free
 def get_history(actor_id):
-db   = get_db()
-rows = db.execute(“SELECT * FROM events WHERE actor_id=? ORDER BY ts DESC LIMIT 20”,
-(actor_id,)).fetchall()
-trust = db_get_trust(actor_id)
-return jsonify({“actor_id”:actor_id,“hexis_total”:trust[“hexis_total”],
-“grade”:trust[“grade”],“event_count”:trust[“event_count”],
-“events”:[dict(r) for r in rows]})
+    db   = get_db()
+    rows = db.execute("SELECT * FROM events WHERE actor_id=? ORDER BY ts DESC LIMIT 20",
+                      (actor_id,)).fetchall()
+    trust = db_get_trust(actor_id)
+    return jsonify({"actor_id":actor_id,"hexis_total":trust["hexis_total"],
+                    "grade":trust["grade"],"event_count":trust["event_count"],
+                    "events":[dict(r) for r in rows]})
 
-@app.route(”/leaderboard”)
+@app.route("/leaderboard")
 def leaderboard():
-limit = min(int(request.args.get(“limit”,20)),100)
-db    = get_db()
-rows  = db.execute(“SELECT * FROM actors ORDER BY hexis_total DESC LIMIT ?”,
-(limit,)).fetchall()
-a,e,m = db_stats()
-return jsonify({“leaderboard”:[
-{“rank”:i+1,“actor_id”:r[“actor_id”],
-“hexis_total”:round(r[“hexis_total”],6),
-“grade”:get_grade(r[“hexis_total”])[0],
-“events”:r[“event_count”],“country”:r[“country”]}
-for i,r in enumerate(rows)],
-“total_actors”:a,“total_events”:e,“total_mined”:m})
+    limit = min(int(request.args.get("limit",20)),100)
+    db    = get_db()
+    rows  = db.execute("SELECT * FROM actors ORDER BY hexis_total DESC LIMIT ?",
+                       (limit,)).fetchall()
+    a,e,m = db_stats()
+    return jsonify({"leaderboard":[
+        {"rank":i+1,"actor_id":r["actor_id"],
+         "hexis_total":round(r["hexis_total"],6),
+         "grade":get_grade(r["hexis_total"])[0],
+         "events":r["event_count"],"country":r["country"]}
+        for i,r in enumerate(rows)],
+        "total_actors":a,"total_events":e,"total_mined":m})
 
-@app.route(”/status”)
+@app.route("/status")
 def status():
-a,e,m = db_stats()
-tiers = {str(k): {“label”: v[0], “multiplier”: v[1]}
-for k, v in SENSITIVITY_TIERS.items()}
-return jsonify({“service”:“HEXIS Trust API”,“version”:“0.5”,
-“status”:“live”,“testnet”:True,“port”:PORT,
-“actors”:a,“events”:e,“hexis_mined”:m,
-“total_supply”:TOTAL_SUPPLY,“wallet_cap”:WALLET_CAP,
-“formula”:“HEXIS = S x BO x W x TDR x T x C”,
-“sensitivity_tiers”:tiers,
-“docs”:f”http://174.138.9.102:{PORT}/docs”,
-“contact”:“contact@hexisfoundation.org”,
-“website”:“hexisfoundation.org”,
-“timestamp”:datetime.now(timezone.utc).isoformat()})
+    a,e,m = db_stats()
+    tiers = {str(k): {"label": v[0], "multiplier": v[1]}
+             for k, v in SENSITIVITY_TIERS.items()}
+    return jsonify({"service":"HEXIS Trust API","version":"0.5",
+                    "status":"live","testnet":True,"port":PORT,
+                    "actors":a,"events":e,"hexis_mined":m,
+                    "total_supply":TOTAL_SUPPLY,"wallet_cap":WALLET_CAP,
+                    "formula":"HEXIS = S x BO x W x TDR x T x C",
+                    "sensitivity_tiers":tiers,
+                    "docs":f"http://174.138.9.102:{PORT}/docs",
+                    "contact":"contact@hexisfoundation.org",
+                    "website":"hexisfoundation.org",
+                    "timestamp":datetime.now(timezone.utc).isoformat()})
 
-@app.route(”/keys/create”, methods=[“POST”])
+@app.route("/keys/create", methods=["POST"])
 def create_key():
-body = request.get_json(silent=True) or {}
-if body.get(“admin_key”,””) != ADMIN_KEY:
-return jsonify({“error”:“Unauthorized”}), 401
-label     = body.get(“label”,“unnamed”)
-tier      = body.get(“tier”,“starter”)
-daily_lim = int(body.get(“daily_limit”,100_000))
-raw_key   = “hexis-” + secrets.token_urlsafe(24)
-prefix    = raw_key[:12]
-now       = datetime.now(timezone.utc).isoformat()
-today     = datetime.now(timezone.utc).strftime(”%Y-%m-%d”)
-db = get_db()
-db.execute(“INSERT INTO api_keys VALUES(?,?,?,?,?,0,0,?,?,1)”,
-(hash_key(raw_key),prefix,label,tier,daily_lim,today,now))
-db.commit()
-return jsonify({“api_key”:raw_key,“prefix”:prefix,“label”:label,
-“tier”:tier,“daily_limit”:daily_lim,
-“note”:“Save this key - it cannot be retrieved again.”})
+    body = request.get_json(silent=True) or {}
+    if body.get("admin_key","") != ADMIN_KEY:
+        return jsonify({"error":"Unauthorized"}), 401
+    label     = body.get("label","unnamed")
+    tier      = body.get("tier","starter")
+    daily_lim = int(body.get("daily_limit",100_000))
+    raw_key   = "hexis-" + secrets.token_urlsafe(24)
+    prefix    = raw_key[:12]
+    now       = datetime.now(timezone.utc).isoformat()
+    today     = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    db = get_db()
+    db.execute("INSERT INTO api_keys VALUES(?,?,?,?,?,0,0,?,?,1)",
+               (hash_key(raw_key),prefix,label,tier,daily_lim,today,now))
+    db.commit()
+    return jsonify({"api_key":raw_key,"prefix":prefix,"label":label,
+                    "tier":tier,"daily_limit":daily_lim,
+                    "note":"Save this key - it cannot be retrieved again."})
 
-@app.route(”/usage/<key_prefix>”)
+@app.route("/usage/<key_prefix>")
 def usage(key_prefix):
-db  = get_db()
-row = db.execute(“SELECT * FROM api_keys WHERE key_prefix=?”,
-(key_prefix,)).fetchone()
-if not row: return jsonify({“error”:“Not found”}), 404
-return jsonify({“key_prefix”:key_prefix,“label”:row[“label”],
-“tier”:row[“tier”],“daily_limit”:row[“daily_limit”],
-“calls_today”:row[“calls_today”],
-“calls_total”:row[“calls_total”]})
+    db  = get_db()
+    row = db.execute("SELECT * FROM api_keys WHERE key_prefix=?",
+                     (key_prefix,)).fetchone()
+    if not row: return jsonify({"error":"Not found"}), 404
+    return jsonify({"key_prefix":key_prefix,"label":row["label"],
+                    "tier":row["tier"],"daily_limit":row["daily_limit"],
+                    "calls_today":row["calls_today"],
+                    "calls_total":row["calls_total"]})
 
-if **name** == “**main**”:
-init_db()
-print(”=”*56)
-print(“HEXIS Trust API v0.5 - with SQLite + API keys”)
-print(”=”*56)
-print(f”  UI:    http://localhost:{PORT}/”)
-print(f”  Trust: http://localhost:{PORT}/trust/{{actor_id}}”)
-print(f”  Docs:  http://localhost:{PORT}/docs”)
-print(f”  DB:    {DB_PATH}”)
-print(”=”*56)
-app.run(host=“0.0.0.0”, port=PORT, debug=False)
+if __name__ == "__main__":
+    init_db()
+    print("="*56)
+    print("HEXIS Trust API v0.5 - with SQLite + API keys")
+    print("="*56)
+    print(f"  UI:    http://localhost:{PORT}/")
+    print(f"  Trust: http://localhost:{PORT}/trust/{{actor_id}}")
+    print(f"  Docs:  http://localhost:{PORT}/docs")
+    print(f"  DB:    {DB_PATH}")
+    print("="*56)
+    app.run(host="0.0.0.0", port=PORT, debug=False)
