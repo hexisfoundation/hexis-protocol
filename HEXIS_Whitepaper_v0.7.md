@@ -88,7 +88,16 @@ Total Supply: ECU 39,000,000 · HEXIS 12,800,000 · Both fixed forever.
 
 Every centralized trust arbiter eventually gets captured:
 
-InstitutionOriginal Role2026 OutcomeSWIFTInternational paymentsWeaponized as sanctions instrumentLloyd's of LondonCommercial insuranceCannot price war riskDFCTrade financeSubordinated to US foreign policyOPECProduction coordinationFractured — UAE departed 28 Apr 2026RBIMonetary stabilityBlocked dollar purchases for oil refinersmsUSD / AccountableStablecoin trust verifierProvider withdrew — 90% depeg within hoursPolymarket vendorFront-end integritySupply-chain breach — $2.94M phished via injected codeCircleIndependent stablecoin issuerAbsorbed into federal supervision (OCC trust charter) to survive
+|Institution        |Original Role                |2026 Outcome                             |
+|-------------------|-----------------------------|-----------------------------------------|
+|SWIFT              |International payments        |Weaponized as sanctions instrument       |
+|Lloyd's of London  |Commercial insurance         |Cannot price war risk                    |
+|DFC                |Trade finance                |Subordinated to US foreign policy        |
+|OPEC               |Production coordination       |Fractured — UAE departed 28 Apr 2026     |
+|RBI                |Monetary stability           |Blocked dollar purchases for oil refiners|
+|msUSD / Accountable|Stablecoin trust verifier    |Provider withdrew — 90% depeg within hours|
+|Polymarket vendor  |Front-end integrity          |Supply-chain breach — $2.94M phished via injected code|
+|Circle             |Independent stablecoin issuer|Absorbed into federal supervision (OCC trust charter) to survive|
 
 These are not historical analogies. In a single quarter, a
 stablecoin lost 90% of its value the moment its trust provider
@@ -298,7 +307,12 @@ The sunk cost is the security.
 
 3.3 Consensus: Proof of Verifiable Compute (PoVC)
 
-StageActorActionStatePENDINGWorkerSubmit proof + lock stake (3× fee)Awaiting verificationAPPROVEDValidatorVerify — zkSNARK or TEEVerifiedSETTLEDContractConsumer pays, stake returnedCompleteSLASHEDValidatorInvalid output — slash stakeAttacker −3× fee
+|Stage   |Actor    |Action                            |State                |
+|--------|---------|----------------------------------|---------------------|
+|PENDING |Worker   |Submit proof + lock stake (3× fee)|Awaiting verification|
+|APPROVED|Validator|Verify — zkSNARK or TEE           |Verified             |
+|SETTLED |Contract |Consumer pays, stake returned     |Complete             |
+|SLASHED |Validator|Invalid output — slash stake      |Attacker −3× fee     |
 
 No meaningless block rewards. Every ECU minted = one verified unit
 of real work. Attack economics: stake ≥ 3× fee. Expected value of
@@ -307,7 +321,12 @@ attack always negative.
 
 4. ECU Tokenomics — 39,000,000 Fixed Forever
 
-AllocationECU%MechanismGenesis Burn1,950,0005.0%Protocol Black Hole — no private keyGenesis Contributors1,872,0004.8%Recognition of pre-genesis sunk costNetwork Reserve35,178,00090.2%Released via verified compute — 95 yearsTOTAL39,000,000100%Fixed. No inflation. No oracle.
+|Allocation          |ECU           |%       |Mechanism                               |
+|--------------------|--------------|--------|----------------------------------------|
+|Genesis Burn        |1,950,000     |5.0%    |Protocol Black Hole — no private key    |
+|Genesis Contributors|1,872,000     |4.8%    |Recognition of pre-genesis sunk cost    |
+|Network Reserve     |35,178,000    |90.2%   |Released via verified compute — 95 years|
+|**TOTAL**           |**39,000,000**|**100%**|**Fixed. No inflation. No oracle.**     |
 
 Genesis Burn
 
@@ -327,7 +346,12 @@ It is recognition of sunk cost already paid.
 
 Halving Schedule
 
-PhaseECU Range~DurationkWh/ECU00 → 8,794,500~8 yr0.3218,794,500 → 17,589,000~16 yr0.64217,589,000 → 26,383,500~32 yr1.28326,383,500 → 35,178,000~39 yr2.56
+|Phase|ECU Range              |~Duration|kWh/ECU|
+|-----|-----------------------|---------|-------|
+|0    |0 → 8,794,500          |~8 yr    |0.32   |
+|1    |8,794,500 → 17,589,000 |~16 yr   |0.64   |
+|2    |17,589,000 → 26,383,500|~32 yr   |1.28   |
+|3    |26,383,500 → 35,178,000|~39 yr   |2.56   |
 
 Reward split: 70% workers / 20% validators / 10% treasury.
 
@@ -421,7 +445,14 @@ behavior — not by algorithm.
 
 HEXIS(h) = S × BO × W × TDR × T × C
 
-ComponentRangeMeaningS — Sacrifice Score[0,1]Fraction of available opportunity given upBO — Betrayal Opportunity[0,1]How attractive was the temptation resistedW — Witness Score[0,1]Number and quality of independent confirmationsTDR — Time Decay Resistance[0,1]Does collective memory sustain this behaviorT — Timing Score[0,1]Submitted before outcome known = 1.0C — Context Multiplier[0.5, 2.0]Geographic justice via GDP adjustment
+|Component                  |Range     |Meaning                                        |
+|---------------------------|----------|-----------------------------------------------|
+|S — Sacrifice Score        |[0,1]     |Fraction of available opportunity given up     |
+|BO — Betrayal Opportunity  |[0,1]     |How attractive was the temptation resisted     |
+|W — Witness Score          |[0,1]     |Number and quality of independent confirmations|
+|TDR — Time Decay Resistance|[0,1]     |Does collective memory sustain this behavior   |
+|T — Timing Score           |[0,1]     |Submitted before outcome known = 1.0           |
+|C — Context Multiplier     |[0.5, 2.0]|Geographic justice via GDP adjustment          |
 
 For Tier-aware jobs (introduced in v0.6), the BO component is scaled
 by the sensitivity tier multiplier before normalization.
@@ -509,7 +540,11 @@ A purely aggregate model misses this.
 
 8.4 The Roadmap
 
-PhaseTrust LayerTarget EconomyStatusv0.5–v0.6AggregateAI agentsLivev1.0AggregateAI agentsMainnet targetv2.0+Aggregate + DyadicAI + HumanFuture
+|Phase    |Trust Layer       |Target Economy|Status        |
+|---------|------------------|--------------|--------------|
+|v0.5–v0.6|Aggregate         |AI agents     |**Live**      |
+|v1.0     |Aggregate         |AI agents     |Mainnet target|
+|v2.0+    |Aggregate + Dyadic|AI + Human    |Future        |
 
 The dyadic layer will be added later, on top of the same protocol.
 This is not a compromise. It is the recognition that trust between
@@ -825,7 +860,14 @@ What is real: all logic, all integration, all economic design.
 
 18. Roadmap
 
-VersionStatusDeliverablesv0.3–v0.5CompleteCore protocol, PoVC, SCS, Federated Learningv0.6CompleteSensitivity tiers; AI-first architectural clarity; HTTPS production (Cloudflare subdomains)v0.7CurrentCounterparty Integrity / bilateral stake (consumer+worker, symmetric slashing, pair-frequency cap); Audit & Compliance layer (tamper-proof hash chain) — live; positioning vs registries, constitutions, regimes; red-team hardeningv0.8PlannedSecond independent node (non-foundation key); Severity Tiers calibrated on a public incident corpus (Q2 2026), refined on protocol data; real Groth16 ZK proof replaces mockv1.0PlannedMainnet — security audit, creator disengagementv2.0+FutureDyadic trust layer for the human economy
+|Version  |Status  |Deliverables|
+|---------|--------|------------|
+|v0.3–v0.5|Complete|Core protocol, PoVC, SCS, Federated Learning|
+|v0.6     |Complete|Sensitivity tiers; AI-first architectural clarity; HTTPS production (Cloudflare subdomains)|
+|v0.7     |Current |Counterparty Integrity / bilateral stake (consumer+worker, symmetric slashing, pair-frequency cap); Audit & Compliance layer (tamper-proof hash chain) — live; positioning vs registries, constitutions, regimes; red-team hardening|
+|v0.8     |Planned |Second independent node (non-foundation key); Severity Tiers calibrated on a public incident corpus (Q2 2026), refined on protocol data; real Groth16 ZK proof replaces mock|
+|v1.0     |Planned |Mainnet — security audit, creator disengagement|
+|v2.0+    |Future  |Dyadic trust layer for the human economy|
 
 
 19. Risks
