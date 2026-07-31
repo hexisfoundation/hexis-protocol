@@ -6,13 +6,11 @@
 <title>HEXIS — Whitepaper v0.7</title>
 <style>
   :root{
-    /* dark sidebar */
     --bg:#0a0c10;--panel:#12151b;--panel2:#171b22;--border:#1f2530;
     --text:#dce2ea;--muted:#8894a3;--dim:#565f6c;
     --accent:#7fa8b8;--accent-soft:rgba(127,168,184,.12);--gold:#ffd24a;
-    /* light reading pane (sepia paper — easy on eyes for long text) */
     --paper:#f5f1e8;--paper2:#efe9dc;--ink:#20262b;--ink2:#5a6570;--rule:#e2ddd0;
-    --acc:#2f6d84;--acc-soft:#e6efe9;
+    --navy:#1a4f88;--navy-deep:#12293f;--acc:#2f6d84;--acc-soft:#e6efe9;
     --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,system-ui,sans-serif;
     --serif:'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif;
     --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;
@@ -20,79 +18,72 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{background:var(--bg);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-  @keyframes pulseGold{0%,100%{box-shadow:0 0 6px rgba(255,210,74,.5),0 0 0 3px rgba(255,210,74,.18)}
-    50%{box-shadow:0 0 14px rgba(255,210,74,1),0 0 0 6px rgba(255,210,74,.05)}}
-  @media(prefers-reduced-motion:reduce){.tick{animation:none!important}}
-
-  .layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh;max-width:1240px;margin:0 auto}
-
-  /* ── sidebar (dark, library catalog) ── */
-  aside{background:var(--bg);border-right:1px solid var(--border);padding:30px 22px 60px;
-    position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;color:var(--text)}
+  @keyframes pulseGold{0%,100%{box-shadow:0 0 6px rgba(255,210,74,.5)}50%{box-shadow:0 0 13px rgba(255,210,74,1)}}
+  @media(prefers-reduced-motion:reduce){.on .tn{animation:none!important}}
   a{text-decoration:none}
+
+  .layout{display:grid;grid-template-columns:290px 1fr;min-height:100vh;max-width:1260px;margin:0 auto}
+
+  /* ── sidebar (dark, numbered catalogue) ── */
+  aside{background:var(--bg);border-right:1px solid var(--border);padding:30px 20px 60px;
+    position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;color:var(--text)}
   .brand{display:flex;align-items:baseline;gap:9px}
   .mark{font-size:19px;font-weight:700;letter-spacing:3px;color:var(--text)}.mark b{color:var(--accent)}
   .pill{font-family:var(--mono);font-size:10.5px;color:var(--accent);background:var(--accent-soft);
     border:1px solid rgba(127,168,184,.25);padding:2px 8px;border-radius:100px}
-  .st{font-size:11px;color:var(--dim);font-family:var(--mono);letter-spacing:1.5px;margin:7px 0 22px}
-  #toc{display:flex;flex-direction:column;gap:2px}
-  #toc a{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;padding:8px 10px;
+  .st{font-size:11px;color:var(--dim);font-family:var(--mono);letter-spacing:1.5px;margin:7px 0 20px}
+  #toc{display:flex;flex-direction:column;gap:1px}
+  #toc a{display:flex;align-items:center;gap:11px;color:var(--muted);font-size:12.5px;padding:8px 9px;
     border-radius:8px;line-height:1.35;border-left:2px solid transparent}
-  #toc a .tick{width:7px;height:7px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:.2s}
   #toc a:hover{color:var(--text);background:var(--panel)}
   #toc a.on{color:var(--text);background:var(--panel);border-left-color:var(--gold)}
-  #toc a.on .tick{background:var(--gold);animation:pulseGold 2.2s ease-in-out infinite}
-  #toc a.h2{padding-left:24px;font-size:12px}
-  #toc a.h2 .tick{width:5px;height:5px}
+  #toc .tn{font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);
+    min-width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0}
+  #toc a.on .tn{color:#1a1200;background:var(--gold);animation:pulseGold 2.2s ease-in-out infinite}
   .back{margin-top:22px;display:block;font-family:var(--mono);font-size:12px;color:var(--dim)}
   .back:hover{color:var(--accent)}
 
   /* ── reading pane (light sepia — long-form comfort) ── */
-  main{background:var(--paper);color:var(--ink);padding:0}
-  .reader{max-width:720px;margin:0 auto;padding:56px 40px 120px}
+  main{background:var(--paper);color:var(--ink)}
+  .reader{max-width:730px;margin:0 auto;padding:56px 42px 120px}
   .loading{color:var(--ink2);font-family:var(--mono);padding:20px}
 
   #doc{font-family:var(--serif)}
-  #doc h1{font-family:var(--sans);font-size:38px;font-weight:740;letter-spacing:-.8px;line-height:1.15;
-    color:var(--ink);margin:0 0 10px;scroll-margin-top:24px}
-  #doc>h1:first-child+p,#doc .lead{font-size:18px;color:var(--ink2)}
-  #doc h2{font-family:var(--sans);font-size:15px;font-weight:720;letter-spacing:.5px;text-transform:uppercase;
-    color:var(--acc);margin:56px 0 18px;padding-top:30px;border-top:2px solid var(--rule);
-    scroll-margin-top:20px;display:flex;align-items:center;gap:12px;position:relative}
-  #doc h2 .num{font-family:var(--mono);font-size:13px;color:#fff;background:var(--acc);
-    width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
-    box-shadow:0 3px 12px rgba(47,109,132,.35);flex-shrink:0}
-  #doc h3{font-family:var(--sans);font-size:19px;font-weight:700;color:var(--ink);margin:34px 0 12px;scroll-margin-top:20px}
-  #doc h4{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--acc);text-transform:uppercase;
-    letter-spacing:1px;margin:26px 0 10px}
+  #doc h1{font-family:var(--sans);font-size:36px;font-weight:760;letter-spacing:-.7px;line-height:1.18;
+    color:var(--navy-deep);margin:0 0 26px;scroll-margin-top:24px}
+  #doc h2{font-family:var(--sans);margin:60px 0 20px;padding-top:30px;border-top:2px solid var(--rule);
+    scroll-margin-top:20px;display:flex;align-items:center;gap:15px}
+  #doc h2 .num{font-family:var(--mono);font-size:15px;font-weight:700;color:#fff;background:var(--navy);
+    min-width:36px;height:36px;padding:0 5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;
+    box-shadow:0 5px 16px rgba(26,79,136,.42);flex-shrink:0}
+  #doc h2 .ht{font-size:23px;font-weight:800;letter-spacing:-.4px;color:var(--navy-deep);line-height:1.22}
+  #doc h3{font-family:var(--sans);font-size:19px;font-weight:720;color:var(--navy);margin:34px 0 12px;scroll-margin-top:20px}
   #doc p{font-size:18.5px;line-height:1.82;color:var(--ink);margin:0 0 20px}
-  #doc strong{font-weight:700;color:#12161a}
+  #doc strong{font-weight:700;color:#0f1418}
   #doc em{font-style:italic}
   #doc a{color:var(--acc);text-decoration:underline;text-underline-offset:2px}
   #doc ul,#doc ol{margin:0 0 22px 6px;padding-left:26px}
   #doc li{font-size:18px;line-height:1.75;margin-bottom:9px}
-  #doc li::marker{color:var(--acc)}
+  #doc li::marker{color:var(--navy);font-weight:700}
   #doc hr{border:none;border-top:1px solid var(--rule);margin:44px 0}
-  #doc blockquote{border-left:4px solid var(--acc);background:var(--acc-soft);
-    padding:16px 24px;margin:0 0 24px;border-radius:0 10px 10px 0;font-style:italic;color:#1c3a44}
+  #doc blockquote{border-left:4px solid var(--navy);background:var(--acc-soft);
+    padding:16px 24px;margin:0 0 24px;border-radius:0 10px 10px 0;font-style:italic;color:#173040}
   #doc blockquote p{margin:0;font-size:19px;line-height:1.65}
   #doc code{font-family:var(--mono);font-size:14px;background:var(--paper2);border:1px solid var(--rule);
     padding:2px 6px;border-radius:5px;color:#8a4a2f}
-  #doc pre{background:#1a1f26;color:#dce2ea;border-radius:11px;padding:18px 20px;overflow-x:auto;margin:0 0 24px}
+  #doc pre{background:#141922;color:#dce2ea;border-radius:11px;padding:18px 20px;overflow-x:auto;margin:0 0 24px}
   #doc pre code{background:none;border:none;padding:0;color:#c3cad4;font-size:13px;line-height:1.7}
-  #doc table{width:100%;border-collapse:collapse;margin:6px 0 26px;font-size:15.5px;
-    font-family:var(--sans);display:block;overflow-x:auto}
-  #doc th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#fff;
-    background:var(--acc);font-weight:660;padding:11px 15px}
+  #doc table{width:100%;border-collapse:collapse;margin:6px 0 26px;font-size:15.5px;font-family:var(--sans);display:block;overflow-x:auto}
+  #doc th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#fff;background:var(--navy);font-weight:660;padding:11px 15px}
   #doc td{padding:11px 15px;border-bottom:1px solid var(--rule);color:var(--ink);vertical-align:top}
   #doc tr:nth-child(even) td{background:var(--paper2)}
 
   @media(max-width:880px){
     .layout{grid-template-columns:1fr}
     aside{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
-    #toc{max-height:210px;overflow-y:auto}
+    #toc{max-height:220px;overflow-y:auto}
     .reader{padding:34px 22px 80px}
-    #doc h1{font-size:30px} #doc p{font-size:17.5px}
+    #doc h1{font-size:29px} #doc p{font-size:17.5px} #doc h2 .ht{font-size:20px}
   }
 </style>
 </head>
@@ -100,7 +91,7 @@
 <div class="layout">
   <aside>
     <div class="brand"><span class="mark">HE<b>X</b>IS</span><span class="pill">v0.7</span></div>
-    <div class="st">WHITEPAPER</div>
+    <div class="st">WHITEPAPER · CONTENTS</div>
     <nav id="toc"><span style="color:var(--dim);font-family:var(--mono);font-size:12px">…</span></nav>
     <a class="back" href="/">← hexisfoundation.org</a>
     <a class="back" href="HEXIS_Whitepaper_v0.7.md">raw markdown ↗</a>
@@ -115,24 +106,38 @@
   let md;
   try{ md=await (await fetch('HEXIS_Whitepaper_v0.7.md')).text(); }
   catch(e){ doc.innerHTML='<div class="loading">Could not load the whitepaper.</div>'; return; }
-  if(typeof marked==='undefined'){ doc.innerHTML='<pre style="white-space:pre-wrap;font-family:var(--serif)">'+md.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</pre>'; return; }
+
+  // ── pre-process: promote the doc's own numbering into real headings ──
+  // first non-empty line -> H1 title; each sequential "N. Title" (1,2,3…) -> H2 section.
+  const lines=md.split('\n'), out=[]; let expect=1, inCode=false, titled=false;
+  for(let line of lines){
+    if(/^```/.test(line)) inCode=!inCode;
+    if(!titled && !inCode && line.trim()){ out.push('# '+line.trim()); titled=true; continue; }
+    const m=!inCode && line.match(/^(\d{1,2})\.\s+(.+)$/);
+    if(m && +m[1]===expect){ out.push('## '+line.trim()); expect++; }
+    else out.push(line);
+  }
+  md=out.join('\n');
+
+  if(typeof marked==='undefined'){ doc.innerHTML='<pre style="white-space:pre-wrap;font-family:var(--serif);font-size:16px">'+md.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</pre>'; return; }
   marked.setOptions({gfm:true,breaks:false});
   doc.innerHTML=marked.parse(md);
 
-  // number the H2 sections + build TOC
-  let n=0;
+  // split "N. Title" H2 into a numbered badge + bold title
+  doc.querySelectorAll('h2').forEach(h=>{
+    const m=h.textContent.match(/^(\d{1,2})\.\s+(.*)$/);
+    if(m) h.innerHTML='<span class="num">'+m[1]+'</span><span class="ht">'+m[2]+'</span>';
+  });
+
+  // ── build numbered TOC ──
   const heads=[...doc.querySelectorAll('h1,h2')];
   toc.innerHTML='';
   heads.forEach((h,i)=>{
     h.id='s'+i;
-    if(h.tagName==='H2'){
-      n++;
-      const b=document.createElement('span'); b.className='num';
-      b.textContent=String(n).padStart(2,'0'); h.prepend(b);
-    }
-    const a=document.createElement('a');
-    a.href='#s'+i; a.className=h.tagName.toLowerCase();
-    a.innerHTML='<span class="tick"></span><span>'+h.textContent+'</span>';
+    const num=h.querySelector('.num')?.textContent;
+    const title=(h.querySelector('.ht')||h).textContent;
+    const a=document.createElement('a'); a.href='#s'+i;
+    a.innerHTML=(num?'<span class="tn">'+num+'</span>':'<span class="tn">·</span>')+'<span>'+title+'</span>';
     toc.appendChild(a);
   });
   const links=[...toc.querySelectorAll('a')];
