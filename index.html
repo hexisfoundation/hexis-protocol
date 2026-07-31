@@ -36,16 +36,24 @@
   h1{font-size:64px;font-weight:720;letter-spacing:8px;line-height:1;margin-bottom:16px}
   h1 b{color:var(--accent)}
   .tag{font-size:16px;color:var(--muted);letter-spacing:.3px;margin-bottom:40px}
-  .quote{border-left:3px solid var(--accent);padding:6px 0 6px 24px;margin:0 0 8px;
-    font-size:19px;line-height:1.55;color:var(--text);font-weight:500;
-    background:linear-gradient(90deg,var(--accent-soft),transparent 60%)}
-  .quote span{color:var(--muted);font-weight:400}
+  .quote{position:relative;border-left:4px solid var(--accent);padding:16px 0 16px 32px;margin:10px 0 0;
+    font-size:clamp(19px,2.7vw,25px);line-height:1.5;color:var(--text);font-weight:560;letter-spacing:-.2px;
+    background:linear-gradient(90deg,rgba(127,168,184,.15),transparent 66%);
+    box-shadow:-5px 0 30px -8px rgba(127,168,184,.4)}
+  .quote .qm{position:absolute;left:16px;top:-26px;font-family:Georgia,serif;font-size:96px;line-height:1;
+    color:var(--accent);opacity:.16;pointer-events:none;user-select:none}
+  .quote .q2{color:var(--muted);font-weight:400}
+  .quote .q3{color:#6bb6ff;font-weight:720;text-shadow:0 0 26px rgba(107,182,255,.6),0 0 9px rgba(107,182,255,.4)}
 
   section{padding:34px 0;border-top:1px solid var(--border)}
-  .manifesto{font-size:23px;font-weight:640;line-height:1.5;letter-spacing:-.2px}
-  .manifesto div{padding:5px 0}
-  .manifesto .a{color:var(--muted);font-weight:400}
-  .manifesto .h{color:var(--accent)}
+  .manifesto{margin:4px 0}
+  .manifesto .line{font-size:clamp(27px,5.4vw,42px);font-weight:760;line-height:1.24;letter-spacing:-1.2px;padding:3px 0}
+  .manifesto .dim{color:var(--dim)}
+  .manifesto .dim s{color:var(--muted);text-decoration-thickness:2px;text-decoration-color:var(--dim)}
+  .manifesto .now{color:var(--text);margin-top:8px}
+  .manifesto .judge{color:#6bb6ff;background:linear-gradient(92deg,#7fe0ec,#6bb6ff 62%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 24px rgba(107,182,255,.7)) drop-shadow(0 0 7px rgba(127,224,236,.55))}
   p.body{color:var(--muted);font-size:15.5px;margin-bottom:14px}
   p.body strong{color:var(--text);font-weight:600}
 
@@ -115,17 +123,18 @@
     <h1>HE<b>X</b>IS</h1>
     <div class="tag">A Decentralized Protocol for Trust Verification</div>
     <blockquote class="quote">
+      <span class="qm" aria-hidden="true">“</span>
       "The people who decide have no skin in the game.<br>
-      <span>The people with skin in the game have no voice.</span><br>
-      This protocol gives them one."
+      <span class="q2">The people with skin in the game have no voice.</span><br>
+      <span class="q3">This protocol gives them one."</span>
     </blockquote>
   </header>
 
   <section>
     <div class="manifesto">
-      <div><span class="a">Bitcoin removed the bank.</span></div>
-      <div><span class="a">Ethereum removed the lawyer.</span></div>
-      <div>Hexis removes the <span class="h">judge.</span></div>
+      <div class="line dim">Bitcoin removed the <s>bank</s>.</div>
+      <div class="line dim">Ethereum removed the <s>lawyer</s>.</div>
+      <div class="line now">Hexis removes the <span class="judge">judge</span>.</div>
     </div>
   </section>
 
