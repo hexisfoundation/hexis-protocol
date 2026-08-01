@@ -310,13 +310,24 @@ The sunk cost is the security.
 |Stage   |Actor    |Action                            |State                |
 |--------|---------|----------------------------------|---------------------|
 |PENDING |Worker   |Submit proof + lock stake (3× fee)|Awaiting verification|
-|APPROVED|Validator|Verify — zkSNARK or TEE           |Verified             |
+|APPROVED|Validator|Verify — re-execute σ% (PoSP)     |Verified             |
 |SETTLED |Contract |Consumer pays, stake returned     |Complete             |
 |SLASHED |Validator|Invalid output — slash stake      |Attacker −3× fee     |
 
 No meaningless block rewards. Every ECU minted = one verified unit
 of real work. Attack economics: stake ≥ 3× fee. Expected value of
 attack always negative.
+
+Verification is Proof-of-Sampling (PoSP): the validator re-executes a
+random σ% of completed jobs and compares outputs; any mismatch slashes
+the worker's stake. Because a worker cannot know in advance which jobs
+are sampled, executing every job honestly is the only safe strategy.
+Verification therefore costs a fraction of the work — not the orders-of-
+magnitude overhead of forcing each AI inference through a zero-knowledge
+circuit (zkML), which in 2026 is slower and costlier than the compute it
+would attest. The same sunk-cost, slash-on-fault economics that back ECU
+also secure the proof: security is economic and self-sourced, not borrowed
+from an external cryptographic oracle.
 
 
 4. ECU Tokenomics — 39,000,000 Fixed Forever
@@ -865,7 +876,7 @@ What is real: all logic, all integration, all economic design.
 |v0.3–v0.5|Complete|Core protocol, PoVC, SCS, Federated Learning|
 |v0.6     |Complete|Sensitivity tiers; AI-first architectural clarity; HTTPS production (Cloudflare subdomains)|
 |v0.7     |Current |Counterparty Integrity / bilateral stake (consumer+worker, symmetric slashing, pair-frequency cap); Audit & Compliance layer (tamper-proof hash chain) — live; positioning vs registries, constitutions, regimes; red-team hardening|
-|v0.8     |Planned |Second independent node (non-foundation key); Severity Tiers calibrated on a public incident corpus (Q2 2026), refined on protocol data; real Groth16 ZK proof replaces mock|
+|v0.8     |Planned |Second independent node (non-foundation key); Severity Tiers calibrated on a public incident corpus (Q2 2026), refined on protocol data; Proof-of-Sampling (PoSP) replaces mock — validator re-executes σ% of jobs, mismatch slashes stake (AI-native economic verification, not zkSNARK)|
 |v1.0     |Planned |Mainnet — security audit, creator disengagement|
 |v2.0+    |Future  |Dyadic trust layer for the human economy|
 
@@ -1051,7 +1062,11 @@ inflict damage far beyond the fee. Pricing that is the work of
 Severity Tiers (v0.8), calibrated on a public incident corpus
 (Q2 2026) and refined on protocol data as it accrues.
 The entire argument assumes valid proofs. The testnet runs a
-mock; real Groth16 (v0.8) closes this.
+mock; Proof-of-Sampling (v0.8) closes this — the validator re-executes
+a random σ% of jobs and slashes on mismatch. The check is economic,
+not zkSNARK: forcing every AI job through a proof circuit (zkML) costs
+far more than the work itself, and the same slashing that secures the
+stake secures the sampling.
 Tolerance to adversarial actors is economic and high. Tolerance
 to adversarial infrastructure is zero: single node, foundation-
 hosted, not yet independently replicated.
