@@ -1062,14 +1062,26 @@ inflict damage far beyond the fee. Pricing that is the work of
 Severity Tiers (v0.8), calibrated on a public incident corpus
 (Q2 2026) and refined on protocol data as it accrues.
 The entire argument assumes valid proofs. The testnet runs a
-mock; Proof-of-Sampling (v0.8) closes this — the validator re-executes
-a random σ% of jobs and slashes on mismatch. The check is economic,
+mock; Proof-of-Sampling replaces it — the validator re-executes a
+random σ% of jobs and slashes on mismatch. The check is economic,
 not zkSNARK: forcing every AI job through a proof circuit (zkML) costs
 far more than the work itself, and the same slashing that secures the
-stake secures the sampling.
+stake secures the sampling. What sampling does not yet have is a second
+pair of eyes. Its two defences against a dishonest validator — a quorum
+of independent validators that must agree before anyone is condemned,
+and a stake the validator forfeits for a verdict contradicting that
+agreement — are implemented and deployed, but held at inert settings.
+They cannot be switched on honestly while the foundation holds every
+validator key: one hand casting two votes is not a quorum. That gate
+opens when an independent operator runs a node, not when more code is
+written.
 Tolerance to adversarial actors is economic and high. Tolerance
 to adversarial infrastructure is zero: single node, foundation-
-hosted, not yet independently replicated.
+hosted, not yet independently replicated. A second node run by the
+foundation would not repair this. By the standard §11.4 sets for
+everyone else it would be housekeeping — the same party defining
+the test, running it, and grading the result. Replication counts
+only under a key the foundation does not hold.
 The Context multiplier (C ∈ [0.5, 2.0]) raises HEXIS yield in
 lower-GDP jurisdictions by design, so integrity is not taxed by
 poverty. The same lever is an attack surface: domicile
