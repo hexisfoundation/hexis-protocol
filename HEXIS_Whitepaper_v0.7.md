@@ -217,6 +217,7 @@ verdict.
 
 2. Proof of Value Protocol
 
+```
 Bitcoin:  Financialised destroyed electricity
           → money without banks
 
@@ -225,6 +226,7 @@ ECU:      Financialised destroyed compute energy
 
 HEXIS:    Financialised behavioral sacrifice
           → trust without arbiters
+```
 
 The combined name: Proof of Value Protocol (PoVP)
 
@@ -293,8 +295,10 @@ of useful AI compute. Nothing more. Nothing less.
 
 3.2 Sunk Cost Standard — Zero Oracle
 
+```
 ECU_minted = energy_joules / (ENERGY_UNIT_GENESIS × 2^halving_phase)
 ENERGY_UNIT_GENESIS = 1,152,000 joules = RTX 3080 × 1 hour × 320W
+```
 
 No Chainlink. No price reference. No external dependency.
 The physics is the backing.
@@ -391,6 +395,7 @@ being genuinely costly.
 
 5.2 Why HEXIS Follows the Bitcoin Path
 
+```
 Bitcoin:  Fixed supply. Cannot inflate.
           Cost = physical energy destroyed.
           Backing = the destruction itself.
@@ -405,12 +410,15 @@ The only difference:
   BTC burns electricity.
   HEXIS burns the opportunity to betray.
   In both cases: the cost IS the value. Not a promise. Proof.
+```
 
 5.3 Total Supply: 12,800,000
 
+```
 BTC:    21,000,000    ≈ number of bankers globally
 ETH:   ~121,000,000   ≈ number of lawyers globally
 HEXIS:  12,800,000    (a rhetorical echo, not a census — chosen fixed, like Bitcoin's 21M)
+```
 
 5.4 Non-Transferability
 
@@ -439,6 +447,7 @@ stake.
 
 6. HEXIS Tokenomics — 12,800,000 That Cannot Be Bought
 
+```
 Total Supply:              12,800,000  HEXIS  100.0%
 Pre-mint (9.5%):            1,216,000  HEXIS
   ├── Founder      (1.5%):    192,000  HEXIS  vest 10yr, cliff 1yr
@@ -446,6 +455,7 @@ Pre-mint (9.5%):            1,216,000  HEXIS
   └── Genesis Burn (6.0%):    768,000  HEXIS  burned at Block 0
 Public mine       (90.5%): 11,584,000  HEXIS
 Wallet hard cap:                10,000  HEXIS  (0.078%)
+```
 
 The Foundation holds zero hexis. It operates on fiat only.
 No halving: scarcity is created by the actual rarity of trustworthy
@@ -454,7 +464,9 @@ behavior — not by algorithm.
 
 7. The HEXIS Formula
 
+```
 HEXIS(h) = S × BO × W × TDR × T × C
+```
 
 |Component                  |Range     |Meaning                                        |
 |---------------------------|----------|-----------------------------------------------|
@@ -757,9 +769,11 @@ The authors do not predict any price.
 
 The Electoral Cycle — Intentional Design
 
+```
 Founder vest (10yr from launch):        completes 2036
 Early believers vest (4yr from launch): completes 2030
 US Presidential elections:              2028, 2032, 2036
+```
 
 Every 4–5 years: a vesting tranche unlocks, the benchmark resets,
 the market reprices.
@@ -793,6 +807,7 @@ provide without conflict of interest.
 
 15. The x402 Integration
 
+```
 AI Agent wants compute
         ↓
 GET /trust/{worker_id}     → HEXIS score + x402 trust headers
@@ -804,6 +819,7 @@ Compute executed, TEE proof verified
 Payment in ECU via x402    → settle
         ↓
 HEXIS event auto-mined     → honest delivery = trust earned
+```
 
 Under 1 second. No human approval. No KYC. No contracts.
 A worker in rural Vietnam with one RTX 3080 transacts with an
@@ -812,11 +828,13 @@ history alone, not by brand, institution, or jurisdiction.
 
 The Virtuous Cycle
 
+```
 Deliver honest compute
   → ECU minted (spendable income)
   → HEXIS mined (trust credential, non-transferable)
   → Higher HEXIS → lower collateral → larger jobs
   → Larger jobs → more ECU + more HEXIS
+```
 
 After ~72 honest jobs: grade High — minimum collateral, 1.0×.
 No name. No papers. No bank. Only proof.
@@ -824,6 +842,7 @@ No name. No papers. No bank. Only proof.
 
 16. Genesis
 
+```
 NEWFLOW genesis message (18 April 2026):
 "Reserve Bank of India suspends dollar purchases for oil refiners
  as rupee hits record low 95/USD —
@@ -835,6 +854,7 @@ HEXIS genesis message (Block 0, pending):
  The people with skin in the game have no voice.
  This protocol gives them one.
  The protocol belongs to the behavior it records."
+```
 
 Block 0 of HEXIS has not been mined. It will be mined when a single
 event makes the need for this protocol self-evident — when a
@@ -846,9 +866,11 @@ is borne by people who had no voice in the decision.
 
 As of July 2026 (v0.7):
 
+```
 HEXIS × NEWFLOW Bridge (v0.6.2):   https://bridge.hexisfoundation.org
 HEXIS Trust API (v0.6.1):          https://api.hexisfoundation.org
 API Docs:                          https://api.hexisfoundation.org/docs
+```
 
 All endpoints are served over HTTPS via Cloudflare.
 
@@ -856,7 +878,9 @@ Working integration of HEXIS and NEWFLOW. Register a worker node,
 request a compute job, complete it — HEXIS integrity proof is
 automatically mined. The trust API returns x402-compatible headers.
 
+```
 GET /trust/{any_actor_id}
+```
 
 Returns trust score, grade, and collateral requirement for any
 actor. No account. No registration. Call it now.
@@ -981,7 +1005,8 @@ central claim being true and being aspirational.
 
 Appendix A: Supply Verification
 
-python# ECU
+```python
+# ECU
 ECU_TOTAL        = 39_000_000
 ECU_BURN         =  1_950_000   # 5.0% ✓
 ECU_CONTRIBUTORS =  1_872_000   # 4.8% ✓
@@ -995,10 +1020,12 @@ HEXIS_FOUNDER    =    192_000   # 1.5% ✓
 HEXIS_EARLY      =    256_000   # 2.0% ✓
 HEXIS_PUBLIC     = 11_584_000   # 90.5% ✓
 # CHECK: sum = 12,800,000 ✓
+```
 
 Appendix B: Sensitivity Tier Calibration
 
-pythonSENSITIVITY_TIERS = {
+```python
+SENSITIVITY_TIERS = {
     1: ("Public",       1.0),    # Public datasets
     2: ("Internal",     5.0),    # Internal company data
     3: ("Confidential", 20.0),   # Trade secrets, PII
@@ -1010,9 +1037,11 @@ pythonSENSITIVITY_TIERS = {
 # Tier 2: HEXIS = 0.001872  (1.8x)
 # Tier 3: HEXIS = 0.002651  (2.6x)
 # Tier 4: HEXIS = 0.003571  (3.5x)
+```
 
 Appendix C: Trust Architecture Summary
 
+```
 Aggregate Trust (v0.5+):
   - One score per actor
   - Public, on-chain
@@ -1026,6 +1055,7 @@ Dyadic Trust (v2.0+, future):
   - History of relationship matters
   - Required for human economy
   - Not yet specified
+```
 
 Appendix D: Stress Test — The 1% Adversary
 
