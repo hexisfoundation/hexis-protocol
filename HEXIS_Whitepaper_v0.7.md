@@ -1121,6 +1121,21 @@ cryptographically — until it does (candidate mitigations:
 energy-grid attestation, latency triangulation, capping C's
 marginal contribution per actor), C is trusted input, and
 trusted input is what the protocol elsewhere refuses.
+The protocol's public surfaces sit behind a single vendor. DNS,
+TLS termination, and edge filtering run on Cloudflare; since August
+2026 a payment handle (@hexis) does too. Today this is convenience,
+not identity: an actor is its key, and the handle is a distribution
+surface the protocol does not depend on. It becomes a constraint at
+any of three triggers. (a) An actor cannot transact, or cannot be
+resolved, without the handle — identity would have migrated into a
+namespace the foundation does not own. (b) Restoring service without
+Cloudflare takes longer than 24 hours. (c) A settlement path can be
+frozen by the vendor. (a) and (c) do not hold. (b) is unmeasured:
+no failover has been exercised, so the restore time is unknown, and
+an unmeasured dependency is recorded here as open rather than
+passed. §11's standard applies to infrastructure as much as to
+registries — a dependency the protocol could not survive is a judge
+under another name.
 
 
 The exposure is not the fraction of dishonest actors. It is the
