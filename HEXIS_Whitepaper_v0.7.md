@@ -475,7 +475,7 @@ HEXIS(h) = S × BO × W × TDR × T × C
 |W — Witness Score          |[0,1]     |Number and quality of independent confirmations|
 |TDR — Time Decay Resistance|[0,1]     |Does collective memory sustain this behavior   |
 |T — Timing Score           |[0,1]     |Submitted before outcome known = 1.0           |
-|C — Context Multiplier     |[0.5, 2.0]|Geographic justice via GDP adjustment          |
+|C — Context Multiplier     |[0.8, 1.25]|Geographic justice via GDP adjustment — self-declared, not verified|
 
 For Tier-aware jobs (introduced in v0.6), the BO component is scaled
 by the sensitivity tier multiplier before normalization.
@@ -489,6 +489,25 @@ witnesses confirm what they cannot deny.
 Context multiplier: same sacrifice costs more in poorer countries.
 A worker in Vietnam earns more HEXIS per honest job than one in San
 Francisco. Geography is not a tax on integrity.
+
+Disclosure — C is self-declared and is not verified. An actor types a
+country code at registration and nothing checks it: not against the
+request, not against an IP, not against anything. C is derived from that
+string and multiplies every mint. This protocol grades everyone else on
+the quality of the witness behind a claim, so it says plainly where it
+accepts a claim on trust.
+
+Since 2026-08-17 the range is [0.8, 1.25], narrowed from [0.5, 2.0]: the
+most a false declaration can buy is 56% faster accrual rather than 300%.
+The boost also decays with the actor's own mint count, half-life 100
+mints, so it is a leg-up for a newcomer rather than a standing subsidy —
+which is the equity claim, and not the other one. Neither change makes
+the declaration true. They bound what it is worth.
+
+The same string no longer decides who may audit whom. That gate now runs
+on measurable independence: no value transferred between the two
+accounts, no shared transaction history, and a hardware benchmark
+fingerprint.
 
 Grade Thresholds
 

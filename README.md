@@ -28,7 +28,11 @@ This runs with zero dependencies. Confirms the math works.
 1. Go to https://newsapi.org/register
 2. Create a free account
 3. Copy your API key
-4. Open `hexis_data_collector.py`, set `NEWS_API_KEY = "your_key_here"`
+4. Put it in your environment — **not in a file**:
+
+```bash
+export NEWS_API_KEY="your_key_here"
+```
 
 Free tier: 100 requests/day, articles from past 30 days.
 Paid tier ($449/mo): full archive access.
