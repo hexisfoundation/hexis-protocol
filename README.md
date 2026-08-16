@@ -38,10 +38,23 @@ Paid tier ($449/mo): full archive access.
 2. Create a free account
 3. Go to API Keys → Generate New Key → select "pinFileToIPFS" + "pinJSONToIPFS"
 4. Copy the JWT token
-5. Open `hexis_ledger.py`, set `PINATA_JWT = "your_jwt_here"`
-6. Open `hexis_pipeline.py`, set `PINATA_JWT = "your_jwt_here"`
+5. Put it in your environment — **not in a file**:
+
+```bash
+export PINATA_JWT="your_jwt_here"
+```
 
 Free tier: 1 GB storage, unlimited pins.
+
+**Do not edit `PINATA_JWT` in `hexis_ledger.py` or `hexis_pipeline.py`.** Steps
+5 and 6 used to say to do exactly that, and that was wrong: this is a public
+repository, and a key pasted into a tracked file is published by the next
+`git push` and stays in the history after any commit that removes it. The
+placeholder in those files is there to be left alone.
+
+For a long-running service, put it in the service environment rather than a
+shell — a systemd drop-in at mode 600, or an `EnvironmentFile` that is not
+world-readable. The same rule applies to every other key on this page.
 
 ### GDELT (no key needed)
 Free, public, no registration. Just works.
@@ -73,8 +86,13 @@ cp hexis_mining_v0.1.py hexis_mining.py
 
 Then edit `hexis_pipeline.py`:
 - Change `from hexis_mining_v0_1 import` to `from hexis_mining import`
-- Set `NEWS_API_KEY` and `PINATA_JWT`
 - Set `dry_run = False` to enable IPFS storage
+
+Export the keys rather than editing them into the file — see Step 2:
+
+```bash
+export NEWS_API_KEY="..." PINATA_JWT="..."
+```
 
 Then run:
 
