@@ -139,6 +139,29 @@ IPFS uses content-addressing — the CID is derived from the content.
 Same content always = same CID. Cannot be altered without changing the CID.
 This is sufficient for immutability without needing BTC/ETH dependency.
 
+*Status, 2026-08-17.* That paragraph described an intention for most of this
+project's life. One record is now actually on IPFS and checkable by anyone:
+
+```
+bafkreiaii4hvi3oiolthzme7wvevsou7xti2vinzxawhj2xiyeay2acjd4
+```
+
+```sh
+curl -sSL "https://ipfs.io/ipfs/bafkreiaii4hvi3oiolthzme7wvevsou7xti2vinzxawhj2xiyeay2acjd4" -o record.json
+python3 - <<'EOF'
+import base64, hashlib
+b = open("record.json","rb").read()
+print("b" + base64.b32encode(bytes([1,0x55,0x12,0x20]) + hashlib.sha256(b).digest()).decode().lower().rstrip("="))
+EOF
+```
+
+`ipfs.io` is not ours and is not Pinata's, and the CID recomputes from the bytes
+it serves — so verifying this needs no trust in whoever published it. Two things
+this does not claim: the 36 records minted before 2026-08-16 are **not** on IPFS
+and never will be, because their content was never retained; and a fresh pin
+takes on the order of ten minutes to become retrievable from a third-party
+gateway, so a single 504 means "wait", not "missing".
+
 **Why GDELT and not Twitter/X API?**
 GDELT covers 65+ languages, 250+ countries, updated every 15 minutes.
 Twitter API is expensive ($100/month for basic access).
