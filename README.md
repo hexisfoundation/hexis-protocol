@@ -1,5 +1,59 @@
 # HEXIS MVP — Setup & Run Guide
 
+## Check the audit chain yourself
+
+Every action the live network takes is written to a hash-linked chain that is
+signed daily with an Ed25519 key held off the server. You do not have to take
+our word for any of that. This repository ships the verifier we use, and it
+needs no key, no account and no permission — the endpoints it reads are public.
+
+```bash
+pip install cryptography
+python3 verify_audit_chain.py
+```
+
+That is the whole command. It defaults to the live network at
+`https://bridge.hexisfoundation.org`; pass `--url` to point it somewhere else.
+It prints one line per check and exits `0` on PASS, `1` on FAIL.
+
+```
+Chain integrity
+  PASS  sequence is contiguous
+  PASS  content_hash recomputes for every row
+  PASS  event_id recomputes for every row
+  PASS  prev_hash linkage holds
+  PASS  event count matches the server's own claim
+Seal
+  PASS  chain carries at least one seal
+  PASS  published key is a PUBLIC key
+  PASS  public key is Ed25519 and parses
+  PASS  every seal signature verifies
+  PASS  seal records agree with the rows they seal
+
+RESULT: PASSED — all 10 checks passed
+```
+
+Three things worth knowing before you trust the output:
+
+- **It ignores the server's own verdict.** There is a `/audit/chain/verify`
+  endpoint. This script does not call it, because a server grading its own
+  homework proves nothing. Every hash is recomputed here from the published
+  spec, and the script deliberately does not import our audit module — sharing
+  code with the thing under test lets a bug hide itself.
+- **What it cannot establish.** That the events existed *before* the first
+  seal ran. A signature starts a clock; it cannot wind one back. Only an
+  anchor published outside our control would settle that, and there is none
+  yet.
+- **Read it before running it.** It is ~350 lines of standard library plus
+  `cryptography`, MIT licensed. Rewriting it from scratch against the spec
+  in the endpoint response is a better check than running ours.
+
+This verifier existed and passed since 2026-08-07, but until 2026-08-18 it
+lived only in a private repository — which meant nobody outside could run it.
+That is recorded as a correction, not presented as a feature.
+
+---
+
 ## Files in this package
 
 ```
@@ -8,6 +62,7 @@ hexis_data_collector.py   Module 1 — News API + GDELT data collection
 hexis_ledger.py           Module 2 — IPFS decentralized storage
 hexis_classifier.py       Module 3 — Adversarial/neutral/allied classification
 hexis_pipeline.py         Full pipeline — ties all modules together
+verify_audit_chain.py     Third-party verifier for the live audit chain
 ```
 
 ---
