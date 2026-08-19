@@ -2,7 +2,10 @@ HEXIS × NEWFLOW: Proof of Value Protocol
 
 The Trust and Compute Foundation of the AI Economy
 
-Whitepaper v0.7 — July 2026 · Hexis Foundation · Singapore
+Whitepaper v0.7 — July 2026
+
+HEXIS Foundation — no legal entity, by design.
+Authenticity is cryptographic, not jurisdictional.
 
 
 
@@ -930,7 +933,8 @@ Primary risk: uselessness. The market for decentralised trust
 verification may not materialise at sufficient scale.
 Acknowledged openly. This is why the document invites scrutiny.
 
-Regulatory: Open-source protocol. Singapore foundation.
+Regulatory: Open-source protocol. No legal entity, by design.
+Authenticity is cryptographic, not jurisdictional.
 No founder to arrest for the protocol itself.
 
 Capture of HEXIS: Wallet cap (0.078%) + adversarial witness
@@ -1162,7 +1166,8 @@ gaps above — versioned, not denied.
 
 
 HEXIS × NEWFLOW Whitepaper v0.7 — July 2026
-Hexis Foundation — Singapore
+HEXIS Foundation — no legal entity, by design.
+Authenticity is cryptographic, not jurisdictional.
 © 2026 hexisfoundation. Licensed under MIT.
 contact@hexisfoundation.org · hexisfoundation.org
 The protocol belongs to the behavior it records.

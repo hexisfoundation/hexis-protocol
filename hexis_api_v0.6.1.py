@@ -1,4 +1,3 @@
-Content is user-generated and unverified.
 """
 HEXIS Trust API v0.6.1
 ======================
@@ -12,7 +11,8 @@ Designed to handle 10M registered actors on single $6/mo VPS through:
   - Async write queue (batched writes)
   - Honest backpressure (429 with Retry-After)
 
-Hexis Foundation - Singapore
+HEXIS Foundation — no legal entity, by design.
+Authenticity is cryptographic, not jurisdictional.
 contact@hexisfoundation.org
 """
 

@@ -22,7 +22,8 @@ Same hardening as API v0.6.1:
   - Async write queue for jobs
   - Connection pool to SQLite WAL
 
-Hexis Foundation - Singapore
+HEXIS Foundation — no legal entity, by design.
+Authenticity is cryptographic, not jurisdictional.
 """
 
 import asyncio

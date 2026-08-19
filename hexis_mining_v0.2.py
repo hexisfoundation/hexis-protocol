@@ -11,7 +11,7 @@ TOKEN DISTRIBUTION (verified):
       Genesis burn:     768,000  HEXIS    6.0%  burned at Block 0
     Public mine:     11,584,000  HEXIS   90.5%
     Wallet cap:          10,000  HEXIS    0.078%
-    Foundation:       Singapore  (MAS) — holds zero hexis
+    Foundation:      no legal entity, by design — holds zero hexis
 
 Core formula:
     HEXIS(h) = S × BO × W × TDR × T × C
