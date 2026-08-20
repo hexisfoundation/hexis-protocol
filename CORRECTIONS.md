@@ -174,10 +174,46 @@ Four decisions inside it that are load-bearing rather than decorative:
   regression: 8401 back on `0.0.0.0`. The mechanisms recorded on this page that
   have never bound anyone are the reason a new one ships with proof it can.
 
-Still not covered, and stated rather than implied: this asserts the shape of the
-host, not that the shape is *right*. It would have said `KHỚP` all through the
-months when SSH accepted root passwords, because nothing about that was
-countable in these four terms.
+### It was wrong on its first real run, and that is recorded here rather than fixed quietly
+
+The block reported port 53 listening off loopback. It is not. `systemd-resolved`
+binds `127.0.0.53` — with a `%lo` scope suffix — and `127.0.0.54`, both
+loopback, and the first version of the filter excluded only `127.0.0.1` and
+`[::1]`. Measured, the whole table:
+
+```
+0.0.0.0:80        nginx
+0.0.0.0:22        sshd
+127.0.0.1:8400    bridge
+127.0.0.1:8401    trust api
+127.0.0.54:53     systemd-resolve
+127.0.0.53%lo:53  systemd-resolve
+```
+
+Nothing was exposed. The check was wrong, and it was wrong in the direction
+that destroys checks: **a false alarm that fires every night is how a real
+alarm gets ignored.** That sentence is already on this page, about the
+`grep -o '"ok":[a-z]*'` bug found in this same script on 2026-08-15. A drift
+detector that cries wolf on night one is switched off by night three, and then
+the six-day stale claim it exists to prevent happens again with a dead check
+standing next to it.
+
+Fixed the same day, before it ran once from cron: all of `127.0.0.0/8` counts
+as loopback, scope suffixes included. The host's real listener table is now the
+healthy fixture the test is built on, so the case that broke it is the case it
+is proved against. Re-run on the host afterwards: `KHỚP`.
+
+Worth noting how it was found. Not by the test — the test passed, because the
+fixture was written from what the check expected rather than from what the host
+had. It was found by running the thing once against production before trusting
+it, which is the habit the whole of this file argues for and the reason the run
+happened at all.
+
+### What it does not cover
+
+This asserts the shape of the host, not that the shape is *right*. It would
+have said `KHỚP` all through the months when SSH accepted root passwords,
+because nothing about that was countable in these four terms.
 
 ## 2026-08-20 — Three files that never compiled, a sentence that promised a payment path, and this file made public
 
