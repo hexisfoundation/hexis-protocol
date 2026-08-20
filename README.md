@@ -54,6 +54,29 @@ That is recorded as a correction, not presented as a feature.
 
 ---
 
+## What this project got wrong
+
+[**CORRECTIONS.md**](CORRECTIONS.md) is the running record of claims this
+project made confidently and got wrong, and of live defects found after the
+fact. It was kept privately from 2026-08-05 and published on 2026-08-20.
+
+It is not a changelog and it is not a highlights reel. It contains, among
+others: an endpoint that minted currency from nothing, unauthenticated, in
+production for at least ten days; SSH accepting root passwords for months
+while a config file said it did not; twelve audit event types silently
+discarded, including a fraud that was caught and is not in the record;
+the first record ever published naming three witnesses that do not exist;
+and defects that are still open today, marked as open.
+
+The reason for publishing it is the one in the paragraph above this section. A
+record of our own errors that only we can read is worth what the unpublished
+verifier was worth. Four operational details are generalised for publication
+— the hour of a backup, a directory path, an account inventory, one IP address
+— and each is marked in place where it stood, so you can see the size of what
+is withheld. Nothing is rewritten and no finding is softened.
+
+---
+
 ## Files in this package
 
 ```
@@ -63,6 +86,7 @@ hexis_ledger.py           Module 2 — IPFS decentralized storage
 hexis_classifier.py       Module 3 — Adversarial/neutral/allied classification
 hexis_pipeline.py         Full pipeline — ties all modules together
 verify_audit_chain.py     Third-party verifier for the live audit chain
+CORRECTIONS.md            What this project claimed and got wrong, newest first
 ```
 
 ---

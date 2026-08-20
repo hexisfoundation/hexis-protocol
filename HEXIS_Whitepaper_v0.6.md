@@ -11,7 +11,8 @@
 > in Singapore or anywhere else, and none did when this was written. v0.7 says
 > so plainly — *HEXIS Foundation — no legal entity, by design. Authenticity is
 > cryptographic, not jurisdictional.* The claim was withdrawn on 2026-08-19,
-> and the commit that withdrew it is in this repository's history.
+> the commit that withdrew it is in this repository's history, and the reason
+> it was ever printed is written up in [CORRECTIONS.md](CORRECTIONS.md).
 >
 > Nothing else here has been re-checked against what is true today. Read it as
 > a record of what was claimed in May 2026, not as a description of the
