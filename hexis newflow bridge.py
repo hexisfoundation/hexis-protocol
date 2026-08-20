@@ -30,11 +30,18 @@ x402 INTEGRATION:
   NEWFLOW         → execute + verify
   Bridge          → release payment + mine HEXIS event
 
-PORTS:
-  5042  — HEXIS Trust API     (existing hexis_x402_server.py)
-  8334  — NEWFLOW RPC API     (existing newflow_p2p.py)
-  8400  — This bridge server  (new)
-  8401  — Demo UI             (served from this process)
+PORTS, as this file was written (2026-05-02). Two of these are no longer true
+and are corrected in place rather than left to be believed:
+
+  5042  — HEXIS Trust API     was hexis_x402_server.py, a Flask app. That file
+                              never ran on this host and no longer parses. The
+                              Trust API is now hexis_api_v0.6.1.py, FastAPI,
+                              on 8401, serving api.hexisfoundation.org.
+  8334  — NEWFLOW RPC API     (newflow_p2p.py)
+  8400  — This bridge server  (superseded by hexis_bridge_v0.6.2.py)
+  8401  — not a demo UI; see above. This is the Trust API's port.
+
+Both 8400 and 8401 bind 127.0.0.1 and are reached only through nginx.
 """
 
 import json
