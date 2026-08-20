@@ -1165,6 +1165,31 @@ The exposure is not the fraction of dishonest actors. It is the
 gaps above — versioned, not denied.
 
 
+Check that this copy is the published one
+
+No hash is printed below. A document cannot carry its own hash: writing the
+number in would change the number, and any value that survived that would be
+describing some other version of this page. So the hash is kept outside the
+document, in the audit chain, where it is signed with a key that is not on
+the server.
+
+    curl -s https://hexisfoundation.org/HEXIS_Whitepaper_v0.7.md | sha256sum
+    curl -s https://bridge.hexisfoundation.org/audit/HEXIS_Whitepaper_v0.7.md
+
+The newest document_seal event in the second response names the sha256 of the
+bytes served by the first. They should match. To check that the chain those
+events sit in has not been rebuilt — and that the signature over it is real —
+run the verifier from the repository. It needs no key, no account and no
+permission from us:
+
+    python3 verify_audit_chain.py
+
+Two things worth being clear about. This .md file is the document; the page at
+/whitepaper.html is a viewer that fetches it, and the hash does not cover the
+viewer. And a seal proves what was published, never when it was written — the
+event is evidence from the moment it was recorded onward, and nothing anchors
+it earlier than that.
+
 HEXIS × NEWFLOW Whitepaper v0.7 — July 2026
 HEXIS Foundation — no legal entity, by design.
 Authenticity is cryptographic, not jurisdictional.
