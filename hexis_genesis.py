@@ -48,8 +48,20 @@ EARLY_ALLOC      =    256_000   # 2.0% vest 4yr
 PUBLIC_SUPPLY    = 11_584_000   # 90.5% mined from behavior
 
 BURN_ADDRESS     = "0x0000000000000000000000000000000000000000"
-FOUNDATION_NAME  = "Hexis Foundation"
-FOUNDATION_JURIS = "Singapore"
+FOUNDATION_NAME  = "HEXIS Foundation"
+# Read "Singapore" until 2026-08-19. No entity exists there or anywhere else,
+# and this value is not a caption — it lands in the `foundation.jurisdiction`
+# field of the allocation record below, the document that calls itself the
+# source of truth for every pre-mint allocation and is meant to be pinned to
+# IPFS permanently. A false claim inside that record would have been the most
+# load-bearing one in the repository.
+#
+# The field is kept rather than deleted so the record's shape does not change;
+# what it says is now true. Nothing already written needs revisiting: this
+# module is not on the VPS, nothing imports it, no allocation record has ever
+# been generated from it, and the audit chain's own `genesis` event carries
+# only {"message","schema_version"} — no jurisdiction reached any signed row.
+FOUNDATION_JURIS = "none — no legal entity, by design"
 
 
 # ============================================================

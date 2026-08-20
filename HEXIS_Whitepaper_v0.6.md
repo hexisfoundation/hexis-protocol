@@ -1,3 +1,25 @@
+> ## SUPERSEDED — this is a historical version
+>
+> **The current whitepaper is [v0.7](HEXIS_Whitepaper_v0.7.md).** This file is
+> v0.6, published May 2026. It is kept because deleting a document that was
+> published is pruning history, and this project's own standard is "versioned,
+> not denied".
+>
+> **Its text is unchanged from what was published, including claims since
+> withdrawn.** The one worth naming before you read it: v0.6 describes the
+> foundation as being in Singapore, in three places. No legal entity exists,
+> in Singapore or anywhere else, and none did when this was written. v0.7 says
+> so plainly — *HEXIS Foundation — no legal entity, by design. Authenticity is
+> cryptographic, not jurisdictional.* The claim was withdrawn on 2026-08-19,
+> and the commit that withdrew it is in this repository's history.
+>
+> Nothing else here has been re-checked against what is true today. Read it as
+> a record of what was claimed in May 2026, not as a description of the
+> protocol. Only v0.7 is covered by a `document_seal` event in the audit
+> chain; this file carries no hash and is not sealed.
+
+-----
+
 # HEXIS × NEWFLOW: Proof of Value Protocol
 
 ## The Trust and Compute Foundation of the AI Economy
