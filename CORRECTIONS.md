@@ -34,7 +34,150 @@ under load. Those are live and unfixed. Withholding them would make this file a
 selective disclosure, which is worth less than none — the entries say what is
 wrong and say that it is still wrong.
 
+### STANDING NOTE — do not ever publish `hexis-core` as-is
+
+Written 2026-08-20, for whoever reads it years from now, while the reason is
+still in someone's head rather than only in a diff.
+
+**`hexisfoundation/hexis-core` is the private repository. Its git history
+contains personal information.** A residential IPv6 address and the name of the
+ISP behind it sat in this file until the generalisation pass above; the
+generalisation changed the working tree and did not change history, because
+nothing can. There are others of the same kind.
+
+So if a decision is ever taken to open `hexis-core`:
+
+> **Do not make the existing repository public.** Create a new public
+> repository and copy the current contents into it as a first commit. The old
+> repository stays private, as the archive.
+
+The reasoning is the one this whole file runs on, pointed at itself. **History
+is append-only — and that is precisely why it must not be exported wholesale.**
+The property that makes the audit chain worth having is the property that makes
+a git history dangerous to publish: nothing in it can be taken back. Every
+argument this project makes for keeping records also argues for being
+deliberate about who they are handed to, and those are not in tension. A record
+you cannot edit is worth keeping; it is not therefore worth publishing.
+
+Two ways this goes wrong that are worth naming, because both look like doing
+it properly:
+
+- **"Rewrite the history first."** `filter-repo`, force-push, done. That
+  destroys the archive to produce the copy, and it is the one move this project
+  has refused everywhere else — `mint_block_0.sh` was left in the public
+  history for exactly this reason. Copy forward; do not rewrite backward.
+- **"It is only a few files, just make it public."** The files are not the
+  problem. The history is, and a repository's history is not visible in its
+  file listing. Whoever proposes it will be looking at a clean working tree.
+
+The same note is in `DEPLOY.md`, where the person doing the work will be
+standing.
+
 ---
+
+## 2026-08-20 — A signed payload that depended on coreutils, and the first check that reads the host instead of the prose
+
+### The verification instruction was fixed in the document and left wrong in the chain
+
+The whitepaper's `sha256sum` was corrected earlier today. The same string was
+sitting in the `how_to_check` field of every `document_seal` payload, where it
+matters more, and the first fix did not touch it:
+
+```
+how_to_check: "curl -s https://hexisfoundation.org/... | sha256sum"
+```
+
+**A signed payload must never depend on one operating system's binary name.**
+The whitepaper can be edited and re-sealed; a chain row cannot be edited at
+all, so the wrong instruction would have been permanent in every future seal,
+carried under a signature that makes it look authoritative. That is the worse
+half of the same defect, and it was found only because the first half was being
+written up.
+
+The field is now algorithm-first — the sha256 of the bytes at the URL is the
+fact, and a command is one way to compute it — with `shasum -a 256` and
+`sha256sum` both named. A separate `check` field states the algorithm alone, so
+a reader who cannot run either command still knows what is being claimed.
+
+**Sequences 295 and 313 keep the old wording and are not touched.** They are
+signed. Editing them is the one thing this file exists to object to, and the
+instruction in them is wrong rather than dangerous: a reader on Linux runs it
+successfully, and a reader anywhere else can now find the right spelling in any
+later row.
+
+### `CORRECTIONS.md` is now sealed, and could not name its own seal
+
+Added to `DOCUMENT_SEAL_ALLOWLIST` the day it was published. The argument is
+short: a corrections file that can be quietly revised is worse than no
+corrections file, because it reads as a promise that it has not been. This
+document makes that exact argument about other records; being an exception to
+it was not defensible for longer than a day.
+
+It seals per edit rather than per release, which is the intended shape for a
+document that only ever grows.
+
+One thing that could not be done, and is worth writing down because the first
+attempt tried it: **this entry cannot name the sequence its own seal is
+recorded at.** Writing the number in changes the bytes, which changes the hash,
+which makes the number wrong. It is the same constraint the whitepaper hit —
+a document cannot carry its own hash — arriving one level up, and the answer is
+the same. The whitepaper's seal (313) is named above because that is a
+different document. This file's is not named anywhere inside it. Read it from
+the chain:
+
+```sh
+curl -s https://bridge.hexisfoundation.org/audit/CORRECTIONS.md
+```
+
+### The nightly job now re-runs the commands this file quotes
+
+The stale port-8401 claim below was found by a person reading 1,900 lines by
+hand, six days late. That is not a control.
+
+What was **not** built: anything that reads this file's prose and tries to
+decide whether it is still true. A checker that has to understand English is a
+checker that will be wrong quietly, which is the failure mode already on this
+page a dozen times.
+
+What was built is smaller and countable. `backup_hexis.sh` — the only thing
+that runs every night without anyone remembering it — gained a `host-claims`
+block that re-runs the commands the host-state claims quote, and compares
+counts:
+
+| Asserted | Expected |
+|---|---|
+| ports listening off loopback | exactly 22 and 80 |
+| ports listening on loopback | 8400 and 8401 both present |
+| `ufw` allow set | exactly 22 and 80, one app profile |
+| `hexis-bridge`, `hexis-api` | `active`, `NRestarts=0` |
+
+The convention it enforces, now in `DEPLOY.md`: **a claim in this file about
+host state carries the command, its output, and the date.** The nightly block
+re-runs the command half. A human still has to fix the sentence.
+
+Four decisions inside it that are load-bearing rather than decorative:
+
+- **Drift does not fail the backup.** Backups and host monitoring are two jobs.
+  A backup refused because a port changed is the fastest route to someone
+  removing the check. Drift writes to the manifest, prints to stderr so cron
+  mails it, and leaves a `HOST_DRIFT` marker for the night nobody reads mail —
+  and retention still runs.
+- **`PATH` is set explicitly.** `ss`, `ufw` and `systemctl` live in
+  `/usr/sbin`; cron runs with `/usr/bin:/bin`. Without that line every command
+  is "not found", and **a check that cannot run reads exactly like a check that
+  passed.**
+- **Silence is drift.** A missing tool, an empty `ss`, a port that has vanished
+  — each is reported. A port that disappeared means the service died; it does
+  not mean the host got safer.
+- **It is tested by being made to fire.** `test_backup_hexis.py [6]` stubs
+  `ss`/`ufw`/`systemctl` and drives eight hosts through it, including the exact
+  regression: 8401 back on `0.0.0.0`. The mechanisms recorded on this page that
+  have never bound anyone are the reason a new one ships with proof it can.
+
+Still not covered, and stated rather than implied: this asserts the shape of the
+host, not that the shape is *right*. It would have said `KHỚP` all through the
+months when SSH accepted root passwords, because nothing about that was
+countable in these four terms.
 
 ## 2026-08-20 — Three files that never compiled, a sentence that promised a payment path, and this file made public
 
@@ -87,6 +230,16 @@ not have. **A verification instruction whose first command answers "command not
 found" has not been run** — the same defect as a verifier that existed only in
 a private repository, arriving from the other end. Both changes travelled in
 one deploy so they cost one `document_seal` between them.
+
+Sealed at **audit sequence 313**, superseding the seal at 295 recorded earlier
+the same day. The served document is 48,741 bytes, sha256
+`e788dbb036dfcc94904c62f3886ca07f3bcdcfe77814acf5d13f02f5c51e9469`, signed the
+same day. Both numbers are checkable without asking us:
+
+```sh
+curl -s https://hexisfoundation.org/HEXIS_Whitepaper_v0.7.md | shasum -a 256
+curl -s https://bridge.hexisfoundation.org/audit/HEXIS_Whitepaper_v0.7.md
+```
 
 ### This file is now public
 
