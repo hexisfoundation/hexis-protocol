@@ -54,6 +54,32 @@ That is recorded as a correction, not presented as a feature.
 
 ---
 
+## Check that the chain is older than we say
+
+The verifier above proves the chain is internally consistent and that we signed
+it. It cannot prove the events existed *before* we signed them — a signature
+starts a clock, it cannot wind one back. Both of those layers are ours.
+
+From 2026-08-20 the sealed heads are also committed to Bitcoin, using
+[OpenTimestamps](https://opentimestamps.org). A Bitcoin block timestamp is not
+ours and not the calendar servers'; moving it means rewriting Bitcoin. It is the
+first of the three layers that does not depend on trusting us.
+
+The proofs are in [`ots/`](ots/), with the exact commands, what they prove, what
+they do not, and what we can still do to you despite them, in
+[`ots/HOW_TO_VERIFY.md`](ots/HOW_TO_VERIFY.md).
+
+```bash
+pip install opentimestamps-client==0.7.2
+curl -sO https://hexisfoundation.org/ots/<name>.txt
+curl -sO https://hexisfoundation.org/ots/<name>.txt.ots
+ots verify <name>.txt.ots
+```
+
+Read the message, not the exit code: `ots verify` returns 1 both for a proof
+that is still waiting for its first block and for one that is broken. A newly
+stamped anchor is pending for a few hours and that is normal.
+
 ## What this project got wrong
 
 [**CORRECTIONS.md**](CORRECTIONS.md) is the running record of claims this
@@ -87,6 +113,7 @@ hexis_classifier.py       Module 3 — Adversarial/neutral/allied classification
 hexis_pipeline.py         Full pipeline — ties all modules together
 verify_audit_chain.py     Third-party verifier for the live audit chain
 CORRECTIONS.md            What this project claimed and got wrong, newest first
+ots/                      Bitcoin anchors for sealed chain heads, + HOW_TO_VERIFY
 ```
 
 ---
