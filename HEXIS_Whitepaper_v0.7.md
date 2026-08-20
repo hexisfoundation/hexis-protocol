@@ -1145,11 +1145,18 @@ energy-grid attestation, latency triangulation, capping C's
 marginal contribution per actor), C is trusted input, and
 trusted input is what the protocol elsewhere refuses.
 The protocol's public surfaces sit behind a single vendor. DNS,
-TLS termination, and edge filtering run on Cloudflare; since August
-2026 a payment handle (@hexis) does too. Today this is convenience,
-not identity: an actor is its key, and the handle is a distribution
-surface the protocol does not depend on. It becomes a constraint at
-any of three triggers. (a) An actor cannot transact, or cannot be
+TLS termination, and edge filtering run on Cloudflare. One more
+thing sits there, and it is described narrowly on purpose: the name
+@hexis was reserved on Cloudflare Wallets on 2026-08-05. That
+product has not launched. The reservation exposes no send, no
+receive and no balance — nothing can be paid to it today, and the
+protocol has no funding path through it or anywhere else. It is a
+name held against a future service, and calling it a payment handle
+would describe a surface that does not exist. Today the dependency
+is convenience, not identity: an actor is its key, and the handle is
+a distribution surface the protocol does not depend on. It becomes
+a constraint at any of three triggers. (a) An actor cannot transact,
+or cannot be
 resolved, without the handle — identity would have migrated into a
 namespace the foundation does not own. (b) Restoring service without
 Cloudflare takes longer than 24 hours. (c) A settlement path can be
@@ -1175,6 +1182,12 @@ the server.
 
     curl -s https://hexisfoundation.org/HEXIS_Whitepaper_v0.7.md | sha256sum
     curl -s https://bridge.hexisfoundation.org/audit/HEXIS_Whitepaper_v0.7.md
+
+On macOS and the BSDs there is no sha256sum; the first command ends
+`| shasum -a 256` there. It is spelled out because a verification
+instruction whose first command answers "command not found" has not
+been run, and an instruction nobody can run is worth exactly what a
+verifier nobody could download was worth.
 
 The newest document_seal event in the second response names the sha256 of the
 bytes served by the first. They should match. To check that the chain those
