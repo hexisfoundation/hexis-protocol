@@ -125,6 +125,63 @@ So every event in this chain up to sequence 317 — which is every entry on this
 page, and the whitepaper seals, and the escrow ledger, and the twelve lost
 action types — is now provably older than a block nobody here mined.
 
+### The published verification command did not run on a normal machine
+
+Found by walking the stranger path — fetching both files from the public URL on
+a clean directory and running what `HOW_TO_VERIFY.md` told a reader to run:
+
+```
+$ ots verify seal-000317-10cfb298d0575701.txt.ots
+Could not connect to Bitcoin node: Cookie file unusable … and rpcpassword not
+specified in the configuration file
+```
+
+**`ots verify` needs a local `bitcoind`.** Almost nobody has one. And the
+failure is the worst available shape: it exits 1 — the same code as a genuinely
+broken proof — and prints a message that reads, to anyone not steeped in this,
+like our anchor is bad.
+
+This is the `sha256sum` defect again, three days after it was written up and one
+layer higher: **a verification instruction that does not run is not a
+verification instruction.** It is worse here than it was there, because there
+the reader got "command not found" and knew the fault was theirs. Here they get
+a plausible-looking failure about *our* proof.
+
+Fixed. The published route is now `ots --no-bitcoin verify`, which needs no
+node and prints the actual check:
+
+```
+To verify manually, check that Bitcoin block 963342 has
+merkleroot d91266cc91152060207447cb751677d9c2d15fb0a0faa4173914687f70fe2fde
+```
+
+That turns the question into one about Bitcoin instead of one about us, which
+was the entire point of the layer. The node route is kept and described as the
+stronger form rather than the only one.
+
+Recorded rather than quietly corrected for the reason everything here is: the
+artifact built specifically to remove the need to trust us shipped, for a day,
+with instructions that made it look broken to anyone who tried.
+
+### It was then checked the whole way, by hand
+
+Not left at "the tool says so":
+
+```
+ots --no-bitcoin verify   -> block 963342, merkleroot d91266cc…
+mempool.space   height 963342 -> hash 00000000000000000000f20dac5682d78cf6235101b4ac564dd1e49687ed5f98
+blockstream.info height 963342 -> the same hash, independently
+raw 80-byte header, double-sha256 -> that same hash        (so the header is the block's)
+bytes 36..68 of that header       -> d91266cc…             (so the block commits to our head)
+block timestamp                   -> 2026-08-20 20:04:12 UTC
+```
+
+The raw header was parsed rather than a JSON field read, so the block hash
+could be recomputed and the explorer's answer checked instead of believed.
+
+**Chain head 317 existed before 2026-08-20 20:04:12 UTC, and the evidence for
+that sentence is a Bitcoin block.**
+
 Three design choices carried over from mistakes recorded on this page:
 
 - **It cannot fail a seal.** Every path is wrapped twice and `seal_remote.py`'s

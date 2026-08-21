@@ -57,33 +57,68 @@ Fetch both files — the proof alone is not verifiable, because it attests to th
     curl -sO https://hexisfoundation.org/ots/seal-000317-10cfb298d0575701.txt
     curl -sO https://hexisfoundation.org/ots/seal-000317-10cfb298d0575701.txt.ots
 
+There are two ways to finish, and **the first one is the one that works on a
+normal machine.**
+
+### Without a Bitcoin node — the common case
+
+`ots verify` on its own needs a local `bitcoind` to read the block header. If
+you do not run one it stops with a message about a cookie file or
+`rpcpassword`, which is a **setup failure and not a verdict on the proof** —
+easy to misread as a broken anchor. Use:
+
+    ots --no-bitcoin verify seal-000317-10cfb298d0575701.txt.ots
+
+It prints, for each attestation in the proof:
+
+    To verify manually, check that Bitcoin block 963342 has
+    merkleroot d91266cc91152060207447cb751677d9c2d15fb0a0faa4173914687f70fe2fde
+
+That is the whole check, and it is now a question about Bitcoin rather than
+about us. Look the block up anywhere — mempool.space, blockstream.info, any
+explorer, ideally more than one so you are not trusting a single site — and
+compare the merkle root. If it matches, the file existed before that block.
+
+**This command exits 1.** It has to: it did not check Bitcoin, because you told
+it not to. The exit code is not the answer here; the merkle root is.
+
+### With a Bitcoin node — the strongest form
+
     ots verify seal-000317-10cfb298d0575701.txt.ots
 
-A confirmed proof prints a block height and a date:
+With a node reachable, the client reads the block header from your own copy of
+the chain and does the comparison itself, so you trust no explorer and no
+third party at all. This is the best available check and it is the reason to
+run a node, not a reason to skip verifying if you do not.
 
-    Success! Bitcoin block <height> attests existence as of <date>
+## Read the message, not the exit code
 
-## Read the exit code carefully
-
-`ots verify` exits **0** only when the proof is in a block. It exits **1** both
-for a proof that is *still pending* and for a proof that is *broken*, and those
-mean opposite things:
-
-| Output | Exit | Meaning |
+| Situation | `ots verify` exit | What it means |
 |---|---|---|
-| `Bitcoin block N attests existence as of …` | 0 | anchored |
-| `Pending confirmation in Bitcoin blockchain` | 1 | too young; no block yet |
-| anything else | 1 | the proof did not check out |
+| in a block, node available | 0 | anchored, checked against your own node |
+| in a block, `--no-bitcoin` | 1 | anchored; check the printed merkle root yourself |
+| in a block, no node, no flag | 1 | **setup failure** — says cookie file / rpcpassword |
+| still pending | 1 | too young; no block yet |
+| genuinely broken | 1 | the proof did not check out |
 
-So `ots verify ... || echo BROKEN` will call a perfectly good anchor broken for
-the first few hours of its life. Read the message, not the code. `ots info
-<proof>` shows the same thing in more detail: a `BitcoinBlockHeaderAttestation(
-<height>)` means anchored, a `PendingAttestation('<calendar>')` means waiting.
+Four different situations, one exit code between them. So
+`ots verify … || echo BROKEN` is wrong in three of the four, and the one it
+gets right is the rarest. Read what it printed.
 
-Pending is the normal state after stamping. OpenTimestamps batches submissions
-and commits them on a cadence of hours; the proof upgrades itself when a block
-lands, and a stamp that has not been upgraded yet is not evidence of anything
-being wrong.
+`ots info <proof>` needs no node and no network, and separates the two states
+that matter: a `BitcoinBlockHeaderAttestation(<height>)` means a block has
+committed it; a `PendingAttestation('<calendar>')` means one path is still
+waiting.
+
+A proof normally carries several of each. Ours are submitted to four calendars
+and each lands in its own block, so you will see several heights — for the
+first anchor, 963342, 963346, 963357 and 963374. **The earliest one is the
+claim.** The others are the same fact, established again slightly later, and
+any single one of them is sufficient.
+
+Pending is the normal state for the first few hours after stamping.
+OpenTimestamps batches submissions and commits on a cadence of hours; a stamp
+that has not upgraded yet is not evidence of anything being wrong.
 
 ## Then connect it to the chain
 
