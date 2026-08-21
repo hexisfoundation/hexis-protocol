@@ -75,6 +75,91 @@ standing.
 
 ---
 
+## 2026-08-21 — A check that could not run, and did not say so: two junk rows written into the chain
+
+Sequences **350 and 351** of the live audit chain are successor designations
+that should have been refused. 350 names the seal key already in force as its
+own successor. 351 names the sha256 of the empty string. Both are permanent.
+Rows do not come back out — that is the property the whole system is built on,
+and it does not make exceptions for the operator's mistakes.
+
+They were written by the refusal tests for the feature itself: running each bad
+input against production to watch it be rejected, and two of them were not.
+
+### Root cause, measured
+
+```
+unit file        HEXIS_SEAL_PUBKEY_PATH=/opt/hexis_newflow/foundation_seal.pub
+shell over ssh   UNSET
+```
+
+`record_successor_designation()` reads the seal public key to check that the
+fingerprint being designated is not the key already in force. The CLI runs over
+ssh, where that variable is not set, so the read failed every time. And the
+guard was written:
+
+```python
+if current is not None and current == fingerprint:   # fail OPEN
+```
+
+so a failed read was indistinguishable from a passed check.
+
+**A check that cannot run must refuse, not shrug.** That sentence was written
+into `backup_hexis.sh` on 2026-08-20, about `PATH` under cron, and is quoted in
+the entry below this one. It was violated the next day, in a new file, by the
+same person who wrote it. Knowing a lesson and applying it are different
+activities, and the distance between them here is a permanent row in a chain.
+
+The second row is worse in a quieter way. `e3b0c442…b855` is sha256 of nothing,
+which is what a broken fingerprint pipeline produces — and the pipeline that
+produces it was, an hour earlier, the command about to be written into
+`DEPLOY.md` as the ceremony step. macOS ships LibreSSL 3.3.6, which cannot load
+an Ed25519 public key: it wrote `unable to load Public Key` to stderr, emitted
+zero bytes, and `shasum` hashed them without complaint. **The output is 64
+valid hex characters and looks exactly like an answer.** Had that command
+survived into the ceremony, the project would have committed, permanently and
+under signature, to the designation of a key that does not exist.
+
+### What was done
+
+- **The check fails closed.** No readable seal key means the designation is
+  refused, naming the path to set. It also falls back to the conventional
+  location beside the module, so the CLI can read it at all.
+- **The empty digest is refused by name**, since it is a specific value with a
+  specific cause and no legitimate use.
+- **`key_fingerprint.py`** replaces the shell pipeline and asserts what the
+  pipeline could not: the file parses as Ed25519, the raw key is exactly 32
+  bytes, and the digest is not the digest of empty input.
+- **A retraction path**, `--void-successor <sequence> <reason>`, and both rows
+  are voided — 350 at sequence 353, 351 at 354, each carrying the full reason.
+
+All three original inputs were re-run against production afterwards and all
+three now refuse, including the fail-closed path, tested by moving the public
+key aside.
+
+### Why a void and not a fix
+
+Nothing was deleted. 350 and 351 still hash, still verify, still sit in the
+chain. The void is a later row that says: that one was a mistake, here is why.
+
+That is what an append-only record has instead of an eraser, and it carries
+strictly more information than an eraser would — a reader sees the error, the
+correction, and the interval between them. A system that quietly removed its
+own bad rows would be unable to demonstrate that it had not removed others.
+
+**The retraction path was needed on the day designations shipped**, which is
+the argument for it existing at all: a fingerprint is 64 characters typed by a
+human under ceremony conditions, and the first two ever written on this chain
+were both wrong.
+
+### The uncomfortable part
+
+This happened inside the feature built to be the most careful thing here — the
+one whose entire purpose is to make a commitment that cannot be walked back.
+The failure was not in the cryptography or the design. It was an environment
+variable, a fail-open `if`, and a test run against production on the assumption
+that it would refuse.
+
 ## 2026-08-20 — The third layer, and the one question the verifier could never answer
 
 Not a correction. It closes a limitation that has been stated in this

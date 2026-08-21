@@ -80,6 +80,15 @@ Read the message, not the exit code: `ots verify` returns 1 both for a proof
 that is still waiting for its first block and for one that is broken. A newly
 stamped anchor is pending for a few hours and that is normal.
 
+## What is still wrong
+
+[**OPEN.md**](OPEN.md) lists the defects that are open right now. Each one
+carries a **closing condition** rather than a date — what has to be true before
+it is closed, checkable by you, including against us. Three of them gate a
+specific action: the Trust API's authorisation gap closes *before* any key is
+ever issued to a third party, and the rate limiter gets load-tested *before*
+first public traffic.
+
 ## What this project got wrong
 
 [**CORRECTIONS.md**](CORRECTIONS.md) is the running record of claims this
@@ -113,6 +122,7 @@ hexis_classifier.py       Module 3 — Adversarial/neutral/allied classification
 hexis_pipeline.py         Full pipeline — ties all modules together
 verify_audit_chain.py     Third-party verifier for the live audit chain
 CORRECTIONS.md            What this project claimed and got wrong, newest first
+OPEN.md                   Defects still open, each with its closing condition
 ots/                      Bitcoin anchors for sealed chain heads, + HOW_TO_VERIFY
 ```
 
