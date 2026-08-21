@@ -75,6 +75,122 @@ standing.
 
 ---
 
+## 2026-08-20 — The third layer, and the one question the verifier could never answer
+
+Not a correction. It closes a limitation that has been stated in this
+repository since `verify_audit_chain.py` was written, restated in its README,
+and never fixed — which is close enough to belong here.
+
+### What was missing
+
+The chain had two properties and both were ours.
+
+**Hash linkage** is arithmetic and anyone can recompute it. **The daily seal**
+is an Ed25519 signature over the head, made with a key that is not on the
+server. Together they prove a great deal about internal consistency and about
+the operator having seen a head.
+
+Neither answers this, and the verifier says so in its own output: **that the
+events existed before the first seal ran.** A signature starts a clock; it
+cannot wind one back. Since both layers are produced by the same person, both
+can in principle be produced again, in any order, by whoever holds the key. The
+honest description of the old position is that a reader had to trust us about
+when, and only about when.
+
+### What was built
+
+Sealed heads are now committed to Bitcoin through OpenTimestamps. A Bitcoin
+block timestamp is not ours and is not the calendar servers'; moving it means
+rewriting Bitcoin. **This is the first of the three layers that does not depend
+on trusting the operator**, and that is the whole of why it was worth the code.
+
+`ots_anchor.py` runs on the laptop, beside `seal_remote.py`, because that is
+where the key already is and because the host that holds the chain gains
+nothing — no calendar client, no dependency, no new outbound call. Proofs and
+instructions are published to `hexisfoundation.org/ots/`; a proof nobody can
+fetch proves nothing, which is the 2026-08-18 finding pointed at a new artifact.
+
+The first anchor, end to end, and every number in it is checkable without us:
+
+```
+chain head 317   10cfb298d0575701f7a463d31a11a0a7e6ca73e76e1fad183f057333e045907c
+stamped          2026-08-20, four calendars accepted it
+confirmed        Bitcoin block 963342
+proof            https://hexisfoundation.org/ots/seal-000317-10cfb298d0575701.txt.ots
+recorded         audit sequence 345, action_type ots_anchor
+covers           sequences 0..317, because the chain is hash-linked
+```
+
+So every event in this chain up to sequence 317 — which is every entry on this
+page, and the whitepaper seals, and the escrow ledger, and the twelve lost
+action types — is now provably older than a block nobody here mined.
+
+Three design choices carried over from mistakes recorded on this page:
+
+- **It cannot fail a seal.** Every path is wrapped twice and `seal_remote.py`'s
+  exit code is untouched by anything it does. `PinService`'s law: a pin may
+  never block a mint, so a calendar outage may never make the chain unsignable.
+  That would trade a property we have for one we might get.
+- **It is driven by the seal, not by its own schedule.** A second thing to
+  remember is a second thing to forget — the verifier that sat unpublished for
+  eleven days, the Pages alert unread for a day. The seal happens; therefore
+  the anchor happens.
+- **State is read off the filesystem, never from an index.** A `.txt` with no
+  `.ots` *is* the retry queue. `LocalIndex` is the reason: a second record of
+  what has been stamped is a record that can disagree with the first.
+
+### The measurement that changed the design, including the one that was wrong
+
+On a pending proof, exit codes captured directly:
+
+```
+ots verify     -> rc 1   "Pending confirmation in Bitcoin blockchain"
+ots upgrade -n -> rc 1
+ots info       -> rc 0   PendingAttestation('<calendar>')
+```
+
+`ots verify` returns 1 for a proof that is **merely young** and for one that is
+**broken**. A monitor built on the exit code raises a corruption alarm every
+time a fresh anchor waits for its first block — a false alarm on a daily
+cadence, and this page already carries two entries about what those cost. Only
+a `BitcoinBlockHeaderAttestation` in `ots info` counts as confirmed here.
+
+The first attempt at that measurement got it backwards. It reported `rc 0` for
+a pending proof and a whole docstring was written on top of that, arguing the
+opposite trap. The reason was mundane: `$?` was read at the end of a pipeline
+and returned the exit code of `head`, not of `ots`. **The command measured
+something real and it was not the thing being asked about** — the same shape as
+grepping `whitepaper.html` for a word that only exists in the `.md`, four
+entries down this page. Re-measured directly, corrected before it shipped.
+
+### What the chain event does not do
+
+`ots_anchor` rows are pointers, and say so in their own `does_not_attest`
+field: **this host did not verify the Bitcoin proof and runs no client that
+could.** Verifying it there would mean putting a calendar client on the machine
+that holds the chain, which is the arrangement being avoided. The `.ots` file
+is the evidence, it is published, and a reader checks it against a blockchain
+neither they nor we control. A row claiming more would be the operator vouching
+for the operator.
+
+The event carries the hash it anchored, never its own — the `document_seal`
+self-reference rule, and here it is automatic: the anchored head always sits at
+a lower sequence than the row recording it.
+
+### What anchoring still does not stop, named in the published instructions
+
+Written into `ots/HOW_TO_VERIFY.md` rather than left for a reader to work out,
+because a page that lists only what a mechanism achieves is an advertisement:
+
+- **We can decline to anchor.** A gap in the directory is visible in the
+  filenames; the events inside it have the two weaker layers only.
+- **We can stop.** Nothing obliges the next anchor.
+- **We can anchor one chain and publish another.** Catchable — the published
+  head would not match the anchored one — but only by someone who checks.
+
+None of those lets us make an event look older than it is. That one is closed,
+and it is the only one this layer was ever meant to close.
+
 ## 2026-08-20 — A signed payload that depended on coreutils, and the first check that reads the host instead of the prose
 
 ### The verification instruction was fixed in the document and left wrong in the chain
