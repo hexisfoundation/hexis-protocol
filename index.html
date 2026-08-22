@@ -145,7 +145,9 @@
     <div class="unit">
       <div class="big">The base unit is <b>1 hexis</b></div>
       <p>one verifiable instance of trustworthy behavior under costly circumstances, witnessed by an
-         independent community, recorded immutably.</p>
+         independent community, recorded immutably. <em>As built, only the last of those is fully
+         true: the witness set is three fixed sources today, one of which is the minting process
+         itself. Listed as an open defect in <a href="OPEN.md">OPEN.md</a>.</em></p>
     </div>
     <div style="margin-top:22px">
       <a class="cta" href="whitepaper.html">→ Read the Whitepaper</a>
@@ -159,6 +161,20 @@
       <div class="zt">Register to mine Hexis when the system launches</div>
       <div class="zh">Leave your email and wallet address. You will be notified when the submission portal
         is live. No commitment. No payment.</div>
+      <div class="zh" style="border-left:2px solid var(--accent-line);padding-left:12px;margin-top:10px">
+        <strong>What happens to what you type.</strong> This form posts to
+        <a href="https://formspree.io" rel="noopener">Formspree</a>, a third-party form service, which
+        stores the submission and emails it to us. It is the only processor of personal data this
+        project uses, and it is named here because the whitepaper’s vendor disclosure named only
+        Cloudflare and was incomplete until 2026-08-23.<br><br>
+        Email is required; wallet and interests are optional and nothing verifies them. There is no
+        account and no login — this list is a notification list, nothing else. It is not used by the
+        protocol: the protocol knows actors by key and has no notion of an email address. Ask us and
+        the entry is deleted.<br><br>
+        If you would rather not link an email to a wallet address, leave the wallet field empty. The
+        pairing is exactly the kind of identity linkage this protocol is built to avoid needing, and
+        the only reason to collect it is convenience at launch.
+      </div>
       <form action="https://formspree.io/f/mkokdgjk" method="POST">
         <input type="email" name="email" placeholder="your@email.com" required>
         <input type="text" name="wallet" placeholder="0x… wallet address (optional)">
@@ -187,7 +203,7 @@
 
   <footer>
     <div>
-      Published April 2026 · Licensed under MIT<br>
+      Whitepaper v0.7 — July 2026 · Licensed under MIT<br>
       <a href="mailto:contact@hexisfoundation.org">contact@hexisfoundation.org</a>
     </div>
     <div class="r">
