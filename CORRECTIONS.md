@@ -75,6 +75,213 @@ standing.
 
 ---
 
+## 2026-08-23 — Auditing the paper against the code, and the three surfaces against reality
+
+Two audits were run end to end: every testable claim in the sealed whitepaper
+against a file and a line, and every published surface against a live request.
+104 whitepaper claims were graded; **19 were false as run**. Six defects were
+found on the live hosts. All are corrected as of today except the ones that
+cannot be, and those are named below rather than left out.
+
+### The one that gave a wrong answer to anyone using the product
+
+`api.hexisfoundation.org` — the service literally named "HEXIS Trust API" —
+graded **every actor on the network `Reject`**. All four that have earned HEXIS
+on the bridge, three of them Moderate or Low a hostname away:
+
+```
+3ceLiWR49…   bridge Moderate   |   API Reject
+3dTqYPZkd…   bridge Moderate   |   API Reject
+3d2H3mJoy…   bridge Low        |   API Reject
+3de1n2kDj…   bridge Minimal    |   API Reject
+```
+
+The cause was one missing branch. `compute_grade()` took a score and nothing
+else, so a zero that meant *never seen* and a zero that meant *seen and worth
+nothing* returned the same verdict at 10.0× collateral. The API's store is fed
+only by `POST /integrity/submit` and holds no actors at all, so the wrong branch
+was the only one it ever took.
+
+The bridge never had this bug — it has carried a separate `Unverified` grade for
+a zero score all along. The two services simply never agreed on what not knowing
+means, and nothing compared them. Whitepaper §15 tells an agent to call
+`GET /trust/{worker_id}` without saying which host, and the API's own landing
+page invited exactly that.
+
+Fixed: `compute_grade(score, known=)`, an `Unverified` grade at 0.0 matching the
+bridge, a `known_here` field, and a `store` block in every response naming what
+this store contains and where the authoritative record is. Verified over the
+network: all four now return `Unverified`, not `Reject`.
+
+**An absent record is not a bad record.** It is the absence of one, and code that
+cannot tell them apart will pick the harmful reading, because the harmful reading
+is usually the one with a number attached.
+
+### The form nobody had disclosed
+
+The front page collects an email address and a wallet address and posts them to
+`formspree.io`, a third-party processor named in no published document. The
+whitepaper's vendor paragraph opens *"The protocol's public surfaces sit behind a
+single vendor"*, lists Cloudflare, then says *"One more thing sits there, and it
+is described narrowly on purpose"* — and describes the `@hexis` name. That reads
+as an exhaustive disclosure and was not one, and the vendor it omitted is the one
+receiving personal data. There was no privacy policy; `/privacy` and `/terms`
+were 404.
+
+An email paired to a wallet is also the exact identity linkage this protocol's
+thesis says it removes — §15's *"No name. No papers. No bank."*
+
+Fixed by disclosure at the point of collection: the processor is named, what is
+stored is stated, deletion on request is offered, and the wallet field now says
+plainly that leaving it empty avoids the pairing.
+
+### A false instruction, signed, three times — twice on the day it was found
+
+The `ots_anchor` payload carried this since the layer was built:
+
+> note that `ots verify` exits 0 for a pending proof too
+
+It exits **1**. The original measurement read `$?` off the end of a pipe, so it
+captured the exit status of `tail`. The error was corrected in `DEPLOY.md` and
+`HOW_TO_VERIFY.md` on 2026-08-20 — **and not in the code that generates the
+payload**, which nobody checked.
+
+So on 2026-08-23, during the audit that identified this exact sentence as a
+defect, two more anchors were recorded, and both carry it. Sequences **345, 388
+and 389**. Chain rows cannot be edited; all three stand.
+
+Reproduced live during the same session, which is the whole lesson:
+
+```
+$ ots --no-bitcoin verify <proof> 2>&1 | tail -4 ; echo $?
+0      ← tail's exit code
+$ ots --no-bitcoin verify <proof> > /tmp/o.txt 2>&1 ; echo $?
+1      ← ots's
+```
+
+Fixed forward: the generator now emits the measured behaviour, spells out
+`--no-bitcoin`, and directs the reader to `ots info` — which exits 0, needs no
+node and no network.
+
+**Fixing the documentation is not fixing the defect.** The prose was right for
+three days while the thing that writes into the permanent record stayed wrong,
+and the gap was invisible because both were "done".
+
+### Sampling can be evaded for the cost of one retry
+
+The heaviest whitepaper finding. §3.3's safety argument is *"a worker cannot know
+in advance which jobs are sampled"*, and PoSP rests on it alone.
+
+A job is audited iff `sha256(job_id + ":posp-sample")[:8] / 0xFFFFFFFF < σ`.
+`job_id` is supplied by the caller — `min_length=1, max_length=128`, no format
+check — and σ is published at `/sampling/config`. No server entropy enters. So
+whoever names a job decides whether it can ever be audited.
+
+Measured: **1.10 attempts on average** to find an id that will never be sampled,
+worst case 3 over 1000 trials. Grinding the other way, ~10 attempts to force a
+chosen worker's job into audit. Against a caller who does either, σ = 0.1 is not
+a 10% audit rate; it is 0%.
+
+Cross-checked against production rather than only against the source: an
+independent reimplementation, run over the 30 real `job_complete` events,
+predicted one sampled job in the window where σ > 0 — and the chain's single
+`sampling_open` event names exactly that job, in the same second. Its id is
+`verify-mint-pin-dbcca3181ae2`, which is also the proof that non-uuid ids are
+accepted in production.
+
+The module's own docstring names the assumption and does not enforce it:
+*"khong doan truoc vi job_id la uuid4 do consumer sinh"*.
+
+Recorded in the whitepaper at §3.3 and open until the selection uses entropy the
+caller does not control. Not exploited: every actor on this network was created
+by us, and one audit has ever opened.
+
+### Four of the six formula factors have never moved
+
+Across **all 32 HEXIS records ever minted**: `S = 1.0`, `W = 0.1408`,
+`TDR = 0.1`, `T = 0.5` — one distinct value each. Only `BO` (3 values) and `C`
+(2) vary. The single automated minting path builds every event with identical
+inputs for the other four, so in practice `HEXIS = BO × C × 0.007047`.
+
+The sharpest consequence is §19's *"Timing Score (T) is the primary anti-gaming
+mechanism."* T has held its "outcome not yet confirmed" default in every record
+the protocol has ever produced. It has never discriminated between anything.
+
+Appendix B had been printing the evidence since v0.6 without anyone reading it:
+its four figures reproduce to six decimal places only when S=1.0, W=0.14085,
+TDR=0.1, T=0.5 and C=1.69 — a C the [0.8, 1.25] clamp made unreachable on
+2026-08-17, leaving every figure in that appendix about 35% high.
+
+### The rest, briefly
+
+- **ECU supply.** §4 is built on 39,000,000. The mint engine enforces 950,000,
+  and halves every 237,500 rather than at the printed boundaries — a factor of
+  37. The bridge's genesis allocation names 39,000,000, so the process boots with
+  one figure and mints against another. Zero ECU has ever been minted, so nothing
+  has bound; the numbers must be reconciled before anything does.
+- **The wallet hard cap does not exist.** §19 lists it first among three defences
+  against capture. It is a constant, plus a print statement that calls it
+  "ledger-enforced", plus three comments asserting enforcement lives elsewhere.
+  It does not. Of the three defences, non-transferability is the only one built —
+  and that one is real, by absence: there is no transfer path at all.
+- **No stake-to-fee ratio is enforced.** §3.3 says 3×, Appendix D says a 1.0×
+  floor, and those already disagree. `POST /stake/lock` takes both amounts from
+  the request body and validates only that they are positive. The collateral
+  multiplier is computed, returned to callers, and read by nothing.
+- **There is no TEE.** §15's flow claimed one, and the bridge writes *"TEE proof
+  verified by validator."* into the description of every record it mints, naming
+  "On-chain TEE Proof" as a witness worth 2.0 of the 6.0 witness weight. Thirty-
+  two chain rows assert a verification that never happened, permanently.
+- **`x402_headers` are not headers.** Both services return them as a JSON object
+  in the response body. Neither sets an HTTP response header, so a client that
+  reads headers — which is what "returns x402-compatible headers" instructs —
+  gets nothing.
+- **`POST /keys/create`** was advertised on the API landing page as "Provision an
+  API key", and in `/openapi.json` with `deprecated: false` and a summary FastAPI
+  derived from the function name, "Create Api Key Gone". It has returned 410
+  since 2026-08-14. The human-readable docs were right the whole time; the
+  machine-readable contract was not.
+- **Version numbers.** Both hosts report 0.8.0. §17 named v0.6.2 and v0.6.1 — the
+  first thing a reader following §17 would have hit.
+- **Three tables** in the published whitepaper had collapsed into unreadable runs
+  of text, including the grade table, which is the most operationally
+  load-bearing table in the document.
+- **Four published HTML pages existed only on the VPS**, untracked, last modified
+  three weeks earlier — against the rule that `origin/main` is the source of
+  truth and nothing deploys that is not pushed first. Now in the repository.
+- **Two anchors were sitting pending while Bitcoin already held them.** The
+  calendars had confirmations for heads 347 and 357; our files did not, so the
+  published proofs understated the truth — the precise failure `DEPLOY.md` warns
+  about. Upgraded (blocks 963462 and 963465), recorded, republished.
+
+### What the audit did not find
+
+Stated because an audit that lists only faults is not a measurement. The chain
+was re-verified with an independent implementation rather than by asking the
+server: 390 events, `content_hash` and `event_id` recomputed for every row,
+linkage unbroken, and 13 of 13 Ed25519 signatures valid against the published
+key. The three published documents matched their seals byte for byte. The API's
+auth gates refuse correctly. And the `hexis.db` reconciler, which reports `ok`
+with zero rows and looked like a check passing vacuously, turned out to be
+honest — it reconciles that database against its own events table and never
+claimed otherwise. Suspected, measured, cleared.
+
+### The shape of the 19
+
+Six were **drift**: true when written, overtaken by a change that landed in the
+code and not in the paper. Mechanical to fix. The lesson is that the paper has no
+equivalent of the nightly host-claims block — nothing re-runs its numbers.
+
+Thirteen were **assertion**: never true. A control was designed, named, given a
+constant or a docstring, and not built — and in three cases the code *says* it is
+enforced somewhere else, which is why they survived. That is the failure this
+file exists to catch: a property asserted because it was intended.
+
+Both audits are kept in full, privately, as `WHITEPAPER_AUDIT.md` and
+`SURFACE_AUDIT.md`.
+
+---
+
 ## 2026-08-21 — A check that could not run, and did not say so: two junk rows written into the chain
 
 Sequences **350 and 351** of the live audit chain are successor designations
