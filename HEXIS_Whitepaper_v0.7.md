@@ -51,6 +51,27 @@ remains.
 
 
 
+Corrections of 2026-08-23
+
+Every claim in this document that could be checked against the running code
+was checked, one at a time, against a file and a line or against a live
+response. Nineteen were false as run. They are corrected in place, each
+marked and dated where it stands, because a document that quietly repaired
+itself would be unable to show it had not repaired anything else.
+
+The heaviest: sampling selection is choosable by whoever names a job (§3.3);
+no stake-to-fee ratio is enforced anywhere (§3.3, §10, Appendix D); there is
+no TEE, and the bridge writes that there is into every record (§15); four of
+the formula's six factors have never taken a second value (§7); the wallet
+cap is a constant nothing reads (§6, §19); and the ECU supply the code
+enforces is not the one in §4. Three tables had collapsed into unreadable
+runs of text, one of them the grade table.
+
+The full inventory, including what passed, is in CORRECTIONS.md. Open items
+with their closing conditions are in OPEN.md.
+
+
+
 Abstract
 
 Trust is an asset. Until now, no one had quantified it.
@@ -83,6 +104,8 @@ where both physical energy destruction (ECU) and behavioral sacrifice
 (HEXIS) are financialised into verifiable assets.
 
 Total Supply: ECU 39,000,000 · HEXIS 12,800,000 · Both fixed forever.
+(ECU: see the correction opening §4. The mint engine running today
+enforces a different ceiling.)
 
 
 1. The Problem — And Why Now
@@ -193,7 +216,12 @@ snapshot); they are directionally consistent, not the same series.
 
 1.5 Three Generations
 
-ProtocolRemovesGap remainingBitcoinThe banker — trustless moneyCompute accessEthereumThe lawyer — trustless contractsEnergy-compute exchangeNEWFLOWThe energy broker — trustless computeTrust verificationHEXISThe judge — trustless trust—
+|Protocol|Removes                              |Gap remaining          |
+|--------|-------------------------------------|-----------------------|
+|Bitcoin |The banker — trustless money         |Compute access         |
+|Ethereum|The lawyer — trustless contracts     |Energy-compute exchange|
+|NEWFLOW |The energy broker — trustless compute|Trust verification     |
+|HEXIS   |The judge — trustless trust          |—                      |
 
 1.6 The Guardrail That Could Not Hold
 
@@ -316,19 +344,41 @@ The sunk cost is the security.
 
 |Stage   |Actor    |Action                            |State                |
 |--------|---------|----------------------------------|---------------------|
-|PENDING |Worker   |Submit proof + lock stake (3× fee)|Awaiting verification|
+|PENDING |Worker   |Submit proof + lock stake (see below)|Awaiting verification|
 |APPROVED|Validator|Verify — re-execute σ% (PoSP)     |Verified             |
 |SETTLED |Contract |Consumer pays, stake returned     |Complete             |
 |SLASHED |Validator|Invalid output — slash stake      |Attacker −3× fee     |
 
 No meaningless block rewards. Every ECU minted = one verified unit
-of real work. Attack economics: stake ≥ 3× fee. Expected value of
-attack always negative.
+of real work — vacuously so far: no ECU has been minted.
+
+Attack economics, as designed: stake ≥ 3× fee, expected value of attack
+always negative. CORRECTION, 2026-08-23: **no such ratio is enforced.**
+`POST /stake/lock` takes both stake amounts from the request body and
+validates only that they are positive. The collateral multiplier the trust
+grade returns (1.0× to 5.0×) is reported to callers and read by nothing.
+Appendix D states the same economics with a different constant — "floor
+1.0×" — and neither is in force. Every argument in this document that rests
+on a locked amount being proportional to a fee is, today, an argument about
+a mechanism that is advisory.
 
 Verification is Proof-of-Sampling (PoSP): the validator re-executes a
 random σ% of completed jobs and compares outputs; any mismatch slashes
-the worker's stake. Because a worker cannot know in advance which jobs
-are sampled, executing every job honestly is the only safe strategy.
+the worker's stake. The intent is that because a worker cannot know in
+advance which jobs are sampled, executing every job honestly is the only
+safe strategy.
+
+CORRECTION, 2026-08-23, and it is the most serious in this document.
+**The selection is predictable and choosable.** A job is sampled iff
+`sha256(job_id + ":posp-sample") < σ`, `job_id` is supplied by the caller
+as any string of 1–128 characters with no format check, and σ is published
+at `/sampling/config`. Whoever names a job therefore decides whether it can
+ever be audited. Measured: finding an id that will never be sampled takes
+1.1 attempts on average. Against a caller who grinds ids, σ = 0.1 is not a
+10% audit rate; it is 0%. The sampling module's own docstring names the
+assumption it relies on — that `job_id` is a uuid4 — and nothing enforces
+it. Until the selection uses entropy the caller does not control, the
+safety argument above does not hold.
 Verification therefore costs a fraction of the work — not the orders-of-
 magnitude overhead of forcing each AI inference through a zero-knowledge
 circuit (zkML), which in 2026 is slower and costlier than the compute it
@@ -345,6 +395,17 @@ from an external cryptographic oracle.
 |Genesis Contributors|1,872,000     |4.8%    |Recognition of pre-genesis sunk cost    |
 |Network Reserve     |35,178,000    |90.2%   |Released via verified compute — 95 years|
 |**TOTAL**           |**39,000,000**|**100%**|**Fixed. No inflation. No oracle.**     |
+
+CORRECTION, 2026-08-23. The table above is the design. It is not what the
+code enforces. The mint engine that runs on the testnet caps total supply at
+950,000 ECU (`scs_engine.py`, `MAX_SUPPLY`), and halves every 237,500 ECU
+rather than at the boundaries printed below — a factor of roughly 37. The
+bridge's genesis allocation does name 39,000,000, so the process boots with
+one figure and mints against another. Neither has bound anything: zero ECU
+has ever been minted. The two numbers must be reconciled before any is, and
+until they are, "fixed forever" describes an intention rather than a
+constraint in force. The Genesis Burn and Genesis Contributors rows have no
+implementation at all; their 3,822,000 sits inside NETWORK_RESERVE.
 
 Genesis Burn
 
@@ -371,7 +432,18 @@ Halving Schedule
 |2    |17,589,000 → 26,383,500|~32 yr   |1.28   |
 |3    |26,383,500 → 35,178,000|~39 yr   |2.56   |
 
-Reward split: 70% workers / 20% validators / 10% treasury.
+Two defects in this table, recorded 2026-08-23 rather than quietly fixed.
+The ECU boundaries are those of the 39,000,000 design, not of the 950,000
+the code enforces. And the durations are internally inconsistent: a schedule
+that doubles the energy per ECU each phase gives ~64 years for phase 3, not
+~39. The published figures were chosen to sum to the 95 years named above,
+which traces to a constant in a block-reward function the bridge never
+calls. The kWh/ECU column is correct and does follow the doubling rule.
+
+Reward split: 70% workers / 20% validators / 10% treasury. Coded, but only
+the worker leg is distributed; the validator and treasury legs are computed
+nowhere, and the function that would apply any of them has no caller
+(noted 2026-08-23).
 
 
 5. HEXIS — Proof of Integrity
@@ -382,6 +454,12 @@ Reward split: 70% workers / 20% validators / 10% treasury.
 1 hexis (ἕξις) = one verifiable instance of trustworthy behavior
 in a circumstance where betrayal was easier, witnessed by an
 independent community, recorded immutably.
+
+"Witnessed by an independent community" is the definition, not yet the
+implementation. Every record minted to date names the same three witnesses,
+one of which is the process doing the minting, and one of which refers to a
+TEE that does not exist. Open defect #4 in OPEN.md; disclosed here
+2026-08-23 because a definition is the wrong place to be aspirational.
 
 
 
@@ -437,7 +515,12 @@ Not all jobs carry equal weight in the trust formula. A worker
 processing public datasets faces different temptations than one
 processing regulated medical data.
 
-TierTypeBO MultiplierExamples1Public1.0×Public datasets, no privacy risk2Internal5.0×Internal company data3Confidential20.0×Trade secrets, customer PII4Regulated100.0×Medical, financial, legal data
+|Tier|Type        |BO Multiplier|Examples                          |
+|----|------------|-------------|----------------------------------|
+|1   |Public      |1.0×         |Public datasets, no privacy risk  |
+|2   |Internal    |5.0×         |Internal company data             |
+|3   |Confidential|20.0×        |Trade secrets, customer PII       |
+|4   |Regulated   |100.0×       |Medical, financial, legal data    |
 
 A worker handling Tier 4 data who resists the temptation to leak or
 misuse it earns ~3.5× more HEXIS than the same worker on a Tier 1
@@ -457,7 +540,7 @@ Pre-mint (9.5%):            1,216,000  HEXIS
   ├── Early (3yr+) (2.0%):    256,000  HEXIS  vest 4yr
   └── Genesis Burn (6.0%):    768,000  HEXIS  burned at Block 0
 Public mine       (90.5%): 11,584,000  HEXIS
-Wallet hard cap:                10,000  HEXIS  (0.078%)
+Wallet hard cap:                10,000  HEXIS  (0.078%)  [NOT ENFORCED]
 ```
 
 The Foundation holds zero hexis. It operates on fiat only.
@@ -484,6 +567,16 @@ For Tier-aware jobs (introduced in v0.6), the BO component is scaled
 by the sensitivity tier multiplier before normalization.
 
 Witness weights: adversarial = 3.0 · neutral = 2.0 · allied = 1.0
+(a fourth type, anonymous = 0.3, exists in code and is not described here)
+
+Disclosure, 2026-08-23 — what the six factors actually do. Across all 32
+HEXIS records ever minted, four of them have never taken a second value:
+S = 1.0, W = 0.1408, TDR = 0.1, T = 0.5. The only automated minting path
+builds every event with identical inputs for those four, so in practice
+HEXIS = BO × C × 0.007047. The formula is six factors; two of them move.
+This is a property of the one path that mints, not of the formula, and it
+is a defect in that path — but a reader is entitled to know that the table
+above describes a design and not an observed distribution.
 
 If your enemy confirms you acted honestly — that is real evidence.
 Allied witnesses confirm what they want to be true. Adversarial
@@ -514,7 +607,24 @@ fingerprint.
 
 Grade Thresholds
 
-HEXIS totalGradex402 Collateral≥ 0.05000High1.0× — full trust, ~72 honest jobs≥ 0.00500Moderate1.5× — ~7 jobs≥ 0.00100Low3.0×≥ 0.00010Minimal5.0×< 0.00010Reject—
+|HEXIS total|Grade   |x402 Collateral|
+|-----------|--------|---------------|
+|≥ 0.05000  |High    |1.0×           |
+|≥ 0.00500  |Moderate|1.5×           |
+|≥ 0.00100  |Low     |3.0×           |
+|≥ 0.00010  |Minimal |5.0×           |
+|< 0.00010  |Reject  |—              |
+|no record  |Unverified|— (nothing is known; not a judgement)|
+
+This table was unreadable in the published .md until 2026-08-23 — it had
+collapsed into a single run of text, which is the worst place in the
+document for that to happen. Two further corrections made at the same time.
+The multipliers are reported by the API and applied by nothing (§3.3). And
+the "~72 honest jobs" that stood beside the High row has been removed: it
+depends on fee, tier and country, none of which were stated, and recomputes
+to anywhere between 49 and 82. The bridge and the Trust API also disagreed
+at the bottom of this scale until 2026-08-23, the API returning Reject for
+actors it had simply never seen.
 
 
 8. Trust Architecture — AI First, Human Later
@@ -671,9 +781,13 @@ one-sided design could not price.
 
 v0.7 makes integrity bilateral. Before a job is accepted, both
 parties lock collateral denominated in ECU. The amount each must
-lock is not fixed: it scales inversely with HEXIS standing, so a
+lock is intended to scale inversely with HEXIS standing, so a
 high-trust actor locks little and a new or degraded actor locks more
-— friction priced to reputation. If either side betrays, slashing is
+— friction priced to reputation. CORRECTION, 2026-08-23: it does not.
+The multiplier is computed and returned to callers; the lock endpoint takes
+the amounts from the request and never consults it. The pricing described
+in this paragraph is advisory, and so is the "Higher HEXIS → lower
+collateral" step in §15's virtuous cycle. If either side betrays, slashing is
 symmetric: the betrayer forfeits locked ECU and the honest party is
 made whole.
 
@@ -836,14 +950,25 @@ GET /trust/{worker_id}     → HEXIS score + x402 trust headers
         ↓
 POST /job/request          → NEWFLOW checks trust, creates job
         ↓
-Compute executed, TEE proof verified
+Compute executed  [see the correction below: there is no TEE]
         ↓
 Payment in ECU via x402    → settle
         ↓
 HEXIS event auto-mined     → honest delivery = trust earned
 ```
 
-Under 1 second. No human approval. No KYC. No contracts.
+CORRECTION, 2026-08-23. **There is no TEE and no TEE proof.** The step above
+described one for as long as this diagram has existed, and worse, the bridge
+writes the sentence "TEE proof verified by validator." into the description
+of every HEXIS record it mints, and names "On-chain TEE Proof" as one of the
+three witnesses. Thirty-two rows in the audit chain assert a verification
+that never happened. The chain is append-only, so those rows stand; what can
+change is that no further row is written this way. The payment step is also
+not built — escrow has no public funding path.
+
+Under 1 second for the trust lookup, measured. The full cycle above has never
+been timed end to end and contains a step that does not exist.
+No human approval. No KYC. No contracts.
 A worker in rural Vietnam with one RTX 3080 transacts with an
 enterprise AI agent in London — verified by on-chain behavioral
 history alone, not by brand, institution, or jurisdiction.
@@ -889,8 +1014,8 @@ is borne by people who had no voice in the decision.
 As of July 2026 (v0.7):
 
 ```
-HEXIS × NEWFLOW Bridge (v0.6.2):   https://bridge.hexisfoundation.org
-HEXIS Trust API (v0.6.1):          https://api.hexisfoundation.org
+HEXIS × NEWFLOW Bridge (v0.8.0):   https://bridge.hexisfoundation.org
+HEXIS Trust API (v0.8.0):          https://api.hexisfoundation.org
 API Docs:                          https://api.hexisfoundation.org/docs
 ```
 
@@ -898,7 +1023,11 @@ All endpoints are served over HTTPS via Cloudflare.
 
 Working integration of HEXIS and NEWFLOW. Register a worker node,
 request a compute job, complete it — HEXIS integrity proof is
-automatically mined. The trust API returns x402-compatible headers.
+automatically mined. The trust API returns the x402 header *values*, as a
+JSON object named `x402_headers` in the response body — corrected here
+2026-08-23, having said "returns x402-compatible headers" since v0.5.
+Neither service sets an actual HTTP response header, so a client that reads
+response headers gets nothing and must read the body instead.
 
 ```
 GET /trust/{any_actor_id}
@@ -919,10 +1048,10 @@ What is real: all logic, all integration, all economic design.
 
 |Version  |Status  |Deliverables|
 |---------|--------|------------|
-|v0.3–v0.5|Complete|Core protocol, PoVC, SCS, Federated Learning|
+|v0.3–v0.5|Complete|Core protocol, PoVC, SCS. *Federated Learning was listed here and has no implementation — corrected 2026-08-23*|
 |v0.6     |Complete|Sensitivity tiers; AI-first architectural clarity; HTTPS production (Cloudflare subdomains)|
 |v0.7     |Current |Counterparty Integrity / bilateral stake (consumer+worker, symmetric slashing, pair-frequency cap); Audit & Compliance layer (tamper-proof hash chain) — live; positioning vs registries, constitutions, regimes; red-team hardening|
-|v0.8     |Planned |Second independent node (non-foundation key); Severity Tiers calibrated on a public incident corpus (Q2 2026), refined on protocol data; Proof-of-Sampling (PoSP) replaces mock — validator re-executes σ% of jobs, mismatch slashes stake (AI-native economic verification, not zkSNARK)|
+|v0.8     |Partly shipped|Second independent node (non-foundation key) — *not started*. Severity Tiers calibrated on a public incident corpus (Q2 2026) — *not started*. Proof-of-Sampling — ***deployed and live at σ=0.1 since 2026-08-17***, on a mock workload, with the selection defect corrected in §3.3. Quorum and validator stake are deployed at inert settings|
 |v1.0     |Planned |Mainnet — security audit, creator disengagement|
 |v2.0+    |Future  |Dyadic trust layer for the human economy|
 
@@ -937,13 +1066,26 @@ Regulatory: Open-source protocol. No legal entity, by design.
 Authenticity is cryptographic, not jurisdictional.
 No founder to arrest for the protocol itself.
 
-Capture of HEXIS: Wallet cap (0.078%) + adversarial witness
-requirement (3× weight) + non-transferability make concentration
-structurally difficult.
+Capture of HEXIS: non-transferability makes concentration structurally
+difficult, and that one is real — there is no transfer path in the code at
+all. CORRECTION, 2026-08-23, for the other two named here since v0.3.
+The wallet cap is not enforced anywhere: it is a constant, and three
+separate comments assert it is applied "at the ledger level", where no such
+check exists. The "adversarial witness requirement" is not a requirement —
+the minimum-witness gate counts witnesses without regard to type, and the
+minting path supplies its own. Of the three defences listed, one is built.
 
-Gaming: Timing Score (T) is the primary anti-gaming mechanism.
-Retroactive claims decay rapidly. Adversarial witnesses cannot be
-recruited — they confirm only what they cannot deny.
+Gaming: Timing Score (T) is the intended primary anti-gaming mechanism.
+Retroactive claims decay rapidly by design.
+
+CORRECTION, 2026-08-23. T has held the single value 0.5 — its
+"outcome not yet confirmed" default — in every record the protocol has ever
+minted, because the automated path never supplies a result timestamp. It
+has never discriminated between anything. The claim that adversarial
+witnesses cannot be recruited is also wrong as built: the minting path
+hardcodes its own adversarial witness, and that witness is the minting
+process. The argument in §9.2 about position in a hash-chained sequence is
+separate, and does hold.
 
 Architecture risk (new in v0.6): The aggregate-only model may
 prove insufficient when the protocol expands to serve the human
@@ -1055,7 +1197,12 @@ SENSITIVITY_TIERS = {
     4: ("Regulated",    100.0),  # Medical, financial, legal
 }
 
-# Same fee=100 in Vietnam (C=1.69):
+# Same fee=100 in Vietnam. CORRECTED 2026-08-23: the figures below were
+# computed at C=1.69, which the [0.8, 1.25] clamp has made unreachable
+# since 2026-08-17. At the live cap of C=1.25 the same four jobs yield
+# 0.000761 / 0.001384 / 0.001961 / 0.002641 — about 35% lower. The tier
+# RATIOS are unaffected by C and still hold.
+# Historical figures, at C=1.69:
 # Tier 1: HEXIS = 0.001029
 # Tier 2: HEXIS = 0.001872  (1.8x)
 # Tier 3: HEXIS = 0.002651  (2.6x)
@@ -1135,7 +1282,8 @@ foundation would not repair this. By the standard §11.4 sets for
 everyone else it would be housekeeping — the same party defining
 the test, running it, and grading the result. Replication counts
 only under a key the foundation does not hold.
-The Context multiplier (C ∈ [0.5, 2.0]) raises HEXIS yield in
+The Context multiplier (C ∈ [0.8, 1.25]; this line said [0.5, 2.0] until
+2026-08-23, contradicting §7 in the same document) raises HEXIS yield in
 lower-GDP jurisdictions by design, so integrity is not taxed by
 poverty. The same lever is an attack surface: domicile
 infrastructure in a high-C jurisdiction and mine reputation
@@ -1200,8 +1348,13 @@ permission from us:
 Two things worth being clear about. This .md file is the document; the page at
 /whitepaper.html is a viewer that fetches it, and the hash does not cover the
 viewer. And a seal proves what was published, never when it was written — the
-event is evidence from the moment it was recorded onward, and nothing anchors
-it earlier than that.
+event is evidence from the moment it was recorded onward. That last clause
+used to end "and nothing anchors it earlier than that", which stopped being
+true on 2026-08-20: the chain head is now stamped into Bitcoin through
+OpenTimestamps at each seal, and the proofs are published at
+https://hexisfoundation.org/ots/ with instructions beside them. A Bitcoin
+block is the one layer of this system that does not require trusting its
+operator.
 
 HEXIS × NEWFLOW Whitepaper v0.7 — July 2026
 HEXIS Foundation — no legal entity, by design.
