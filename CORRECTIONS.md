@@ -75,6 +75,54 @@ standing.
 
 ---
 
+## 2026-08-23 — Sampling selection was choosable; fixed with commit-reveal, through one deadlock and one crashloop
+
+The heaviest finding of the whitepaper audit is now closed. PoSP selection was
+`sha256(job_id) < σ` with `job_id` caller-supplied and σ published — whoever
+named a job decided whether it could ever be audited (1.1 attempts on average
+to find a never-sampled id; against a grinding caller, σ = 0.1 was a 0% audit
+rate). §3.3's whole safety argument rested on the sentence this broke.
+
+**The fix**: an epoch secret. Selection is `sha256(secret + job_id) < σ`; the
+secret's hash goes into the audit chain **before any job of the epoch exists**
+(sealed, Bitcoin-anchored — retroactive aiming is disprovable), and the secret
+itself is published when the epoch ends, in the chain and at
+`GET /sampling/epochs`. Anyone can then recompute the entire epoch's selection
+from public data and compare it with the recorded `sampling_open` events; a
+mismatch in either direction is our misconduct, provable by a stranger. σ is
+unchanged at 0.1 — the economics were affirmed as correct; only the selection
+was broken. Stated limitation: the operator holds the secret during its epoch.
+At n=1 the operator already runs the validator and the mint, so this adds no
+authority; it ends with independent infrastructure (OPEN.md #7).
+
+Two defects of mine on the way, both caught by machinery rather than by care:
+
+**The commitment deadlocked itself out of the chain.** `_current_epoch`
+audited from inside its own write transaction; the audit logger opens a second
+write connection to the same database, which waited on the first one's lock,
+timed out, and the swallow in `_audit` ate the error. On production the epoch
+existed and its commitment never reached the chain — and a commit-reveal whose
+commit is missing proves nothing. `sampling_open` never had this bug: it has
+always audited after its transaction closes. The fix queues epoch events and
+flushes them the same way, and the regression test writes its audit into the
+*same* database, because a mock that cannot deadlock tests nothing. Epoch 1
+was ended early and its secret revealed (chain seq 433) — an epoch with no
+on-chain commit is worthless as evidence and was not kept as any. Epoch 2's
+commitment is at seq 434, in the right order.
+
+**The first version of the flush put production in a crashloop — and the boot
+scanner was right to do it.** The flush emitted `self._audit(*ev)`, an action
+type named at runtime. The scanner refuses to start on a call site whose
+action it cannot check, because every caller swallows rejections and the
+events would be lost in silence while the chain still verified as intact. It
+refused; the service crashlooped until the `.bak` rollback. The flush now
+dispatches each action with a literal call site and raises on an unknown one.
+This is the second time a fail-closed check has cost an outage and been
+correct — the first wrote two junk rows when it was fail-open. The cost
+ordering is right and is worth recording as such.
+
+---
+
 ## 2026-08-23 — What the CID is for, two defects under it, and a wrong claim of mine about pinning being off
 
 Asked plainly — *what is the CID for?* — the honest answer contradicted the
