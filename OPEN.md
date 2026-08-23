@@ -16,7 +16,7 @@ short form with the exit criteria attached.
 
 ---
 
-**Closed on 2026-08-23: items 1, 2, 3, 6 and 9.** They are kept below with what
+**Closed on 2026-08-23: items 1, 2, 3, 5, 6 and 9.** They are kept below with what
 was actually done, because a list that deletes its closed entries cannot show
 it closed them rather than dropped them. Item 4 is corrected but NOT closed,
 and says so.
@@ -169,7 +169,48 @@ is not, and it is the one in force.
 Existing records are not re-graded — that was decided in STEP4_PROPOSAL §8.4 —
 so this closes forward only.
 
-### 5. A record's CID is not readable by anyone outside
+### 5. A record's CID is not readable by anyone outside — CLOSED 2026-08-23
+
+**Closed, at a condition rewritten before it was met — openly.** The original
+condition, "a public read that returns a record's CID", could have been
+satisfied by the most dangerous possible act: committing permanent addresses
+to content that was still wrong. The condition actually met is stronger and
+honest about what a CID is for:
+
+*A CID proves nothing the chain does not already prove better. The chain
+commits `proof_hash` for every mint, signed and anchored into Bitcoin; that is
+the integrity claim. What a CID buys is the one thing nothing else provides —
+somebody other than us being able to serve the record when we are gone. The
+protocol keeps running without its operator, or the CID is decoration.*
+
+What exists now:
+
+- `GET /hexis/records` — every record, its address, and whether content is
+  held. The 36 pre-2026-08-16 records say plainly that their content was never
+  built and cannot be served as minted — a permanent loss stated as one, not a
+  backlog.
+- `GET /hexis/record/{event_id}` — the record, its CID **computed from the
+  bytes at answer time, never read from a stored field**, and three ways to
+  verify: bytes against CID, record_hash against content, proof_hash against
+  the Bitcoin-anchored chain.
+- `GET /hexis/record/{event_id}/raw` — the exact canonical bytes. sha256 of
+  the body equals the digest inside the CID: checkable with curl and shasum,
+  no software of ours involved. Verified end to end from outside on
+  2026-08-23, all three checks passing.
+
+Two defects found and fixed while building it, both in CORRECTIONS.md: pinning
+handed the provider both the bytes and the name (the one pinned record's own
+`record_hash` did not verify against what IPFS served); and a record's
+canonical content lived only in the pin queue, which success deletes — so
+pinning a record destroyed our local copy of it. Content now lives in the
+index forever, and the CID is computed locally and checked against every
+provider's answer.
+
+Still true and still stated: only our paid provider serves these bytes today.
+Addressable is not retrievable, and survivability needs a second pinner or a
+Filecoin deal — money, not code. See DEPLOY.md, "The CID layer".
+
+The original entry follows.
 
 The pinning work ends on the sentence "the CID is the source of truth", and no
 public read returns a CID. It lives in `bridge_hexis_index.json` on the host,

@@ -75,6 +75,69 @@ standing.
 
 ---
 
+## 2026-08-23 — What the CID is for, two defects under it, and a wrong claim of mine about pinning being off
+
+Asked plainly — *what is the CID for?* — the honest answer contradicted the
+documents. Not integrity: the audit chain commits `proof_hash` for every mint,
+signed and Bitcoin-anchored, and that check runs without IPFS existing. The
+CID's one real job is **the record surviving its operator** — somebody else
+serving the bytes when we are gone. Decided on that basis: build it, publicly
+(`/hexis/records`, `/hexis/record/{id}`, `/hexis/record/{id}/raw`), and state
+plainly that with one paid provider the survival claim is a design property,
+not an observed one.
+
+Building it surfaced two defects and one error of mine.
+
+### The provider chose our bytes and our name
+
+Pinning used Pinata's `pinJSONToIPFS`, which takes an *object* and re-encodes
+it server-side. So the bytes on IPFS were Pinata's serialisation, not the ones
+we hashed — measured on the one record ever pinned: IPFS held `"S":1` where the
+record was hashed with `1.0`, and the record's own `record_hash` failed against
+its own published content. The record explicitly invites the reader to run that
+exact check. Anyone who did concluded tampering.
+
+There were **three serialisers** for one record: `LedgerRecord.build` for the
+hash, Pinata's for the pinned bytes, a third in `_pin_local`. Now there is one
+(`hexis_cid.canonical_bytes`), the CID is computed locally before upload
+(CIDv1/raw/sha2-256 — four constant bytes and a hash, rederivable by a stranger
+with no software of ours), bytes go up via `pinFileToIPFS`, and a provider
+whose answer differs from our CID is treated as failed, not as having renamed
+our data. Verified live: Pinata now confirms the canonical CID, and sha256 of
+the bytes it serves equals the digest inside it.
+
+One near-miss inside the fix, caught by `test_identity_3a.py [7]`: the new
+canonical serialiser was first written with compact separators, which would
+have silently broken verification of all 37 existing records against the
+record_hash they were stored with. The defect was never the spacing; it was the
+plurality. Kept the historical form.
+
+### Success deleted the record
+
+A record's canonical content lived only in the pin queue, and a record leaves
+the queue when a CID comes back. **Pinning a record destroyed our local copy of
+it.** For the one record that completed the journey, the only surviving bytes
+were the provider's re-encoding; the canonical bytes had to be recovered by
+inverting Pinata's int/float rewrite until the stored `record_hash` matched.
+The index now keeps full content forever, and a boot-time restore path re-adds
+content to an entry — gated on the record_hash the index has carried since the
+mint, refusing anything that hashes differently, renaming consumed files
+`.done`/`.refused` so a vanished file cannot be mistaken for a restored one.
+
+### And my own error, same class as the 350/351 incident
+
+On 2026-08-23 I reported to the operator that "pinning is still OFF on
+production — nothing has been published." **Pinning was ON.** `PINATA_JWT` is
+set in the systemd unit's `Environment=`, which an ssh shell does not inherit;
+I had read the "pinning OFF" line from a CLI invocation I ran myself, not from
+the service. This is precisely the mechanism behind the two junk chain rows of
+2026-08-21 — a unit-set environment variable absent in an interactive shell —
+recorded here because making that mistake *while narrating the previous one*
+is the strongest evidence yet that the check must be mechanical: the nightly
+host-claims block, not a human reading a log line from the wrong process.
+
+---
+
 ## 2026-08-23 — Auditing the paper against the code, and the three surfaces against reality
 
 Two audits were run end to end: every testable claim in the sealed whitepaper
