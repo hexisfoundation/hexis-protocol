@@ -1,5 +1,10 @@
 # HEXIS MVP — Setup & Run Guide
 
+> **Không tin chúng tôi?** Đúng thái độ. [VERIFY.md](VERIFY.md) — mọi
+> khẳng định kèm lệnh kiểm, không cần xin phép ai. / **Don't trust us?**
+> Correct. [VERIFY.md](VERIFY.md): every claim with the command that checks it.
+
+
 ## Check the audit chain yourself
 
 Every action the live network takes is written to a hash-linked chain that is
