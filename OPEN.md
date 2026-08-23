@@ -16,12 +16,33 @@ short form with the exit criteria attached.
 
 ---
 
-## Blocking a specific action
+**Closed on 2026-08-23: items 1, 2 and 3.** They are kept below with what
+was actually done, because a list that deletes its closed entries cannot show
+it closed them rather than dropped them. Item 4 is corrected but NOT closed,
+and says so.
 
-These three have closing conditions that gate something. The point of writing
-them this way is that the gate is checkable from outside.
+---
 
-### 1. `/stake/lock` debits two parties on one signature
+## Closed
+
+### 1. `/stake/lock` debits two parties on one signature — CLOSED 2026-08-23
+
+**Closed by P1 bilateral stake.** `stake_terms` now carries the agreement.
+The consumer proposes at `POST /stake/terms`; the worker accepts at
+`POST /stake/terms/{job_id}/accept`, naming the `terms_hash` it agrees to.
+Neither moves any ECU. `lock()` refuses with **423 Locked** unless accepted
+terms exist whose hash equals the numbers being locked — so a lock with no
+terms is frozen, a lock the worker has not signed is frozen, and an amount
+changed after acceptance is frozen. Nothing is debited on any of those paths;
+verified by balance before and after.
+
+The worker's signature is made by the worker, at the moment of consent, over a
+URL containing the job_id, with a recorded nonce. That is what rules out all
+four cheap fixes named below rather than merely avoiding them. The signer is
+read from `stake_terms`, never from the request, so no caller can nominate
+whose key is checked.
+
+The original entry follows.
 
 `lock()` takes `consumer_amount + job_value_ecu` from the consumer and
 `worker_amount` from the worker. Whoever signs, one signature moves the other
@@ -44,7 +65,18 @@ signing for an online worker; and inferring consent from job acceptance.
 different reason — escrow has no public funding path — and that is not a
 control, it is an accident that will end.
 
-### 2. Trust API: authentication is not authorisation
+### 2. Trust API: authentication is not authorisation — CLOSED 2026-08-23
+
+**Closed.** `api_keys.actor_scope` records which actor_ids a key may credit —
+a list, or `*`. `key_may_credit()` is asked at the write site before anything
+else runs, and returns 403 otherwise. It fails closed on a NULL scope: a key
+with no scope recorded is refused, not waved through. No migration widened
+existing keys, and none needed to — there were zero keys in the live database,
+which is also why the closing condition was still comfortably ahead of us.
+Verified on production: a key scoped to one actor credits that actor (200) and
+is refused for another (403).
+
+The original entry follows.
 
 A key proves who called. It does not establish that the caller may credit the
 `actor_id` they named, and no such binding exists. **Any keyholder can mint
@@ -56,7 +88,31 @@ of people who already have shell there. That stops being true the first time a
 key goes to somebody else, and the binding has to exist before that happens,
 not in response to it.
 
-### 3. Trust API rate limiter: unverified behind nginx
+### 3. Trust API rate limiter: unverified behind nginx — CLOSED 2026-08-23
+
+**Closed by measurement, and the answer is that it works.** The load test the
+condition asked for was run: 40 concurrent requests return exactly 10 × 200 and
+30 × 429, so the 10/sec limit is real and enforced.
+
+Buckets are keyed on the true visitor IP, not on a collapsed one. Proved with
+two distinct real source addresses from one machine: exhausting the IPv6 bucket
+leaves IPv4 answering 200, and the reverse holds. A 15-request burst from
+loopback on the host does not limit an external caller either. Spoofing
+`X-Forwarded-For` or `X-Real-IP` changes nothing — 40 concurrent requests with
+40 different claimed addresses still gave 10/30.
+
+Why it works, since the service code alone does not show it:
+`/etc/nginx/conf.d/cloudflare-realip.conf` carries the full Cloudflare range
+list with `real_ip_header CF-Connecting-IP` and `real_ip_recursive on`, so
+`$remote_addr` is already the visitor before any `proxy_set_header` runs.
+
+Recorded because it was nearly reported the other way: reading only the vhost
+files showed `X-Real-IP $remote_addr` and no `set_real_ip_from`, which looks
+exactly like a Cloudflare-edge collapse. The global config was one directory
+away. **Grepping part of a configuration and concluding from it is the same
+error as reading `$?` off the end of a pipe.**
+
+The original entry follows.
 
 `rate_limit_middleware` keys its per-IP buckets on `request.client.host` with
 no real-IP handling. The bridge hit exactly this and needed a patch — every
@@ -76,7 +132,24 @@ paying for.
 
 ## Structural, and honest about it
 
-### 4. The witness set is three hardcoded strings
+---
+
+## Still open
+
+### 4. The witness set is three hardcoded strings — CORRECTED, NOT CLOSED
+
+**2026-08-23.** The two names that referred to nothing are gone. "On-chain TEE
+Proof" named a TEE that does not exist; "Consumer Confirmation" named a
+confirmation never asked for. Every record also carried the sentence "TEE proof
+verified by validator." All three witnesses now name something real and
+checkable, and the description says plainly that this host asserts delivery and
+also mints.
+
+**Types and weights are unchanged**, so W stays 0.14085 and yield is
+bit-identical — a deliberate decision to stop asserting what is false without
+silently repricing every future mint on a running testnet. Which means the
+closing condition below is *not* met: W has not fallen, and no corroboration
+has been built. The fabrication is gone; the defect is not.
 
 Every HEXIS record ever minted names the same three witnesses — `NEWFLOW
 Validator`, `On-chain TEE Proof`, `Consumer Confirmation`. **None of them is a
