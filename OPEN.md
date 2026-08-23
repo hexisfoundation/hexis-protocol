@@ -16,7 +16,7 @@ short form with the exit criteria attached.
 
 ---
 
-**Closed on 2026-08-23: items 1, 2 and 3.** They are kept below with what
+**Closed on 2026-08-23: items 1, 2, 3, 6 and 9.** They are kept below with what
 was actually done, because a list that deletes its closed entries cannot show
 it closed them rather than dropped them. Item 4 is corrected but NOT closed,
 and says so.
@@ -180,7 +180,25 @@ content addressing was supposed to remove.
 **Closes at: a public read that returns a record's CID.** Which means first
 deciding what a record's public shape is, which has not been decided.
 
-### 6. Chain balances are not durable
+### 6. Chain balances are not durable — CLOSED 2026-08-23
+
+**Closed at the condition as written**, which asked for the wallets and said
+so deliberately: *"persistence has to start there and not with the balances."*
+The validator and faucet keys live in `protocol_wallets` and are restored on
+boot, so the issuing authority of this ledger no longer changes identity every
+restart. Proved by restarting the live service twice and reading the addresses
+back unchanged; the restored key still signs.
+
+It refuses to boot if a stored key does not derive its stored address, and if
+the wallet cannot be persisted at all — falling back to a per-boot keypair
+would reintroduce the defect while looking like a successful start.
+
+**The balances are still re-minted on every start**, now to the same addresses.
+That is the difference between a ledger that can be replayed and one that
+cannot, which is what the condition was about, but it is not the same as
+durable balances and the genesis log line says which is which on every boot.
+
+The original entry follows.
 
 `BridgeState.__init__` builds `ChainState`, `Ledger` and the mint engine fresh
 and calls `_init_genesis()`. There is no load path. Every restart produces a
@@ -216,7 +234,32 @@ A sampling parameter running at its development value against real traffic.
 **Closes at: a value derived from measured audit outcomes rather than chosen.**
 Which needs enough audits to measure — there have been two.
 
-### 9. Anti-concentration triggers are absolute numbers on an unmeasured network
+### 9. Anti-concentration triggers are absolute numbers — CLOSED 2026-08-23
+
+**Both halves closed.**
+
+*Relative triggers.* `damping()` was `min(1, Q/V)` against `baseline_energy_j`,
+an absolute quota. It is now `min(1, cap/share)` against the region's share of
+network energy, so the trigger means the same thing at any network size and
+needs no recalibration as traffic arrives — which was the actual defect, not
+the particular number. Verified scale-invariant: an identically shaped network
+run at 1e9× the energy returns the identical damping factor, where the absolute
+version would have given two different answers. Damping requires at least two
+active regions, because concentration is a comparison and a lone region would
+otherwise be damped forever for being the only participant. The mint cap's
+absolute free allowance of 20 events became a participant count: a region with
+too few distinct actors has nobody to be concentrated against.
+
+*Silence that says so.* A dormant mechanism is now named at boot, at WARN, with
+its day count and the sentence that it is a measurement rather than a
+reassurance. `/status` had carried the same numbers for a month, but reporting
+to an endpoint nobody polls is not the same as saying it. Live on the first
+boot after deploy: `DORMANT: geo_damping (30d), mint_share_cap (30d)`.
+
+Calibration against organic traffic is still not possible and is still not
+claimed. The point of a relative trigger is that it does not need to be.
+
+The original entry follows.
 
 `baseline_energy_j` is roughly 55 standard jobs per day per region: far above
 organic traffic now, and *below* it for any network worth attacking, at which
