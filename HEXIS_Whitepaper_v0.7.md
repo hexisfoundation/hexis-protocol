@@ -71,6 +71,36 @@ The full inventory, including what passed, is in CORRECTIONS.md. Open items
 with their closing conditions are in OPEN.md.
 
 
+Source labels of 2026-08-28
+
+A claim about this system and a claim about the world are not checkable the
+same way, and until now this document did not say which was which.
+
+Claims about the world carry an inline tag: a bracketed note opening with
+the word **world**, then the source, then the date that source was read. They
+are verifiable only against the source named, on the date stated. Everything untagged is a claim about this system, and is checkable
+against the chain, the code, or a live response — the commands are in
+VERIFY.md.
+
+Eighteen tags cover the sixteen external claims the 2026-08-23 audit listed
+as outside its reach; two of the sixteen are asserted in two places each.
+Each was looked up rather than assumed, and the tag says what was found. Five
+of them do not say what this document says:
+
+  - the x402 agent and transaction counts (two places) — the sourceable
+    figure is smaller, and is named in the tag
+  - the RBI "suspended dollar purchases" line — not found in any primary
+    source. It stays because it is quoted verbatim inside the NEWFLOW genesis
+    block, which is immutable; the tag carries the correction instead
+  - the 2024 election total — OpenSecrets projected $15.9B, not $16.5B
+  - the zk-rollup's "99%" — the shutdown is real, that figure is not
+    confirmed
+
+A tag that reports a disagreement is doing its job. The rule going into v0.8
+is the one this exercise earned: every external figure carries a source and
+an as-of date, or it does not go in.
+
+
 
 Abstract
 
@@ -78,14 +108,14 @@ Trust is an asset. Until now, no one had quantified it.
 
 The Hormuz crisis of April 2026 proved that energy, finance, and
 monetary systems can collapse simultaneously when centralized trust
-arbiters are captured or overwhelmed.
+arbiters are captured or overwhelmed. [world · UN News "Chokepoints and conflict", 2026-04; Wikipedia "2026 Strait of Hormuz crisis" · read 2026-08-28]
 
 Simultaneously, the deployment of x402 by AWS, Google, Coinbase, and
 OKX created an AI agent economy conducting 207 million autonomous
-transactions — with no trust verification layer.
+transactions — with no trust verification layer. [world · FIGURE NOT CONFIRMED — the sourceable figure is Coinbase's 69,000 active agents and 165M x402 transactions to late 2026-04 · read 2026-08-28]
 
 On 7 May 2026, security researchers discovered Chrome silently
-installs a 4GB Gemini Nano AI model on user devices without consent.
+installs a 4GB Gemini Nano AI model on user devices without consent. [world · gHacks 2026-05-06 and ppc.land, reporting Alexander Hanff · read 2026-08-28]
 The AI agent economy is no longer a future scenario. It is running
 today, on machines that no one verifies.
 
@@ -125,18 +155,20 @@ Every centralized trust arbiter eventually gets captured:
 |Polymarket vendor  |Front-end integrity          |Supply-chain breach — $2.94M phished via injected code|
 |Circle             |Independent stablecoin issuer|Absorbed into federal supervision (OCC trust charter) to survive|
 
+Sources for the last five rows: UAE announced its OPEC departure on 28 April 2026, effective 1 May [world · NPR and Al Jazeera 2026-04-28; US EIA "Today in Energy" · read 2026-08-28]. The remaining four are cited in the paragraphs below.
+
 These are not historical analogies. In a single quarter, a
 stablecoin lost 90% of its value the moment its trust provider
-stepped away (msUSD); a prediction market lost $2.94M not through
+stepped away (msUSD) [world · 2026-06-20; the reserve-attestation provider Accountable terminated its agreement · read 2026-08-28]; a prediction market lost $2.94M not through
 its own code but through a compromised third-party vendor
-(Polymarket); and the largest regulated issuer sought a federal
+(Polymarket); and the largest regulated issuer sought a federal [world · 2026-06-25, $2.94M via a compromised third-party vendor; SecurityAffairs, crypto.news · read 2026-08-28]
 trust-bank charter to survive competition from a 140-company
-consortium (Circle vs OUSD). Each failure has the same shape as the
+consortium (Circle vs OUSD). [world · Circle pressroom: final OCC approval for a national trust bank, 2026-07-10 · read 2026-08-28] Each failure has the same shape as the
 institutional captures above — the trust arbiter is a single point,
 and the people bearing the cost had no voice in it.
 
 On 18 April 2026, the Reserve Bank of India suspended direct dollar
-purchases for oil refiners as the rupee hit 95/USD. Energy became
+purchases for oil refiners as the rupee hit 95/USD. [world · the rupee at ~95/USD is corroborated; "suspended direct dollar purchases" is NOT FOUND in any primary source — Bloomberg 2026-04-20 reports the RBI *easing* forex curbs. Retained here because it is quoted verbatim in the NEWFLOW genesis block, which is immutable and is not edited · read 2026-08-28] Energy became
 subject to geopolitical interference. This event is embedded in
 NEWFLOW's genesis block.
 
@@ -152,6 +184,7 @@ solved:
 
 
 x402: 480,000 AI agents, 207M transactions, AWS/Google/Coinbase
+      [world · FIGURE NOT CONFIRMED — Coinbase reported 69,000 active agents and 165M transactions to late 2026-04 · read 2026-08-28]
 OKX APP: Full commerce lifecycle — quote, escrow, settle
 Pay.sh: AI agents pay APIs on Solana (May 2026)
 Oobit Agent Cards: Real Visa cards for AI agents spending USDT
@@ -168,7 +201,7 @@ tell counterparties whether to accept payment from that agent.
 
 On 7 May 2026, security researcher Alexander Hanff revealed that
 Chrome silently stores a 4GB Gemini Nano AI model on user devices.
-No consent. No notification. No way to verify what it does.
+No consent. No notification. No way to verify what it does. [world · gHacks 2026-05-06; ppc.land. Hanff's evidence chain dates the download 2026-04-24 · read 2026-08-28]
 
 The model can:
 
@@ -187,8 +220,8 @@ right now, without any trust verification layer.
 The machine economy is no longer hypothetical. In Q2 2026, Keyrock
 reported 176 million AI-agent transactions settling roughly $73
 million — an average of 31 cents each — with 98% concentrated in a
-single stablecoin. In the same window, Mastercard and Chainlink
-opened a direct on-ramp letting 3.5 billion cardholders buy crypto.
+single stablecoin. [world · Keyrock, "Who Pays the Agent?", with Coinbase, Tempo and Virtuals; CoinDesk 2026-05-21. The window is 2025-05 to 2026-04, not Q2 2026, and the USDC share is 98.6% · read 2026-08-28] In the same window, Mastercard and Chainlink
+opened a direct on-ramp letting 3.5 billion cardholders buy crypto. [world · Mastercard press release, June 2025 — 2025, so not "the same window" as the Keyrock figure · read 2026-08-28]
 Stablecoins are becoming the default settlement layer for autonomous
 agents, and traditional finance is institutionalizing that default.
 
@@ -205,7 +238,7 @@ As of July 2026, this settlement default has legal footing: US
 federal law now bars a central bank digital currency through 2030
 while explicitly exempting open, permissionless, private dollar
 tokens — codifying private stablecoins as the sanctioned
-digital-dollar rail for the rest of the decade. The payment layer is
+digital-dollar rail for the rest of the decade. [world · 21st Century ROAD to Housing Act; Senate 85-5 on 2026-06-22; bars a Fed CBDC to 2030-12-31 with an explicit carve-out for open, permissionless dollar tokens · read 2026-08-28] The payment layer is
 not merely built; it is now legislated. What remains unlegislated,
 and unbuilt at the neutral layer, is the record of whether the
 agents moving that money behaved.
@@ -228,7 +261,7 @@ snapshot); they are directionally consistent, not the same series.
 In June 2026, a frontier AI model was withdrawn from public access
 by government order within roughly ninety minutes, after a national
 security review found it could compromise nearly all classified test
-systems within hours. In the weeks that followed, both the
+systems within hours. [world · a US Commerce Department order of 2026-06-12 gave 90 minutes to comply; IAPP · read 2026-08-28] In the weeks that followed, both the
 government and the model's developer conceded in the open record
 that no model can be made completely jailbreak-proof, and that the
 operative safeguard is not a static guardrail but continuous
@@ -814,6 +847,7 @@ gated until Genesis Block 0.)
 
 On 29 January 2026, ERC-8004 went live with MetaMask, the Ethereum
 Foundation, Google, and Coinbase behind it — a standard for agent
+[world · live on Ethereum mainnet 2026-01-29, eips.ethereum.org/EIPS/eip-8004; the four named backers are not confirmed in the sources read · read 2026-08-28]
 identity and reputation. The obvious question is whether HEXIS
 competes.
 
@@ -862,7 +896,7 @@ you did it."
 
 In mid-2026 a major foundation began using AI agents to audit its
 own protocol, finding and patching a real vulnerability before
-exploitation. This proves the detection layer is feasible — and
+exploitation. [world · the Ethereum Foundation, blog.ethereum.org 2026-07-09, "The triage is the product"; the bug was CVE-2026-34219 in libp2p gossipsub · read 2026-08-28] This proves the detection layer is feasible — and
 proves its limit. An organization auditing itself is a closed loop:
 the same party defines the test, runs it, and grades the result.
 HEXIS's witness weighting (adversarial 3.0 vs allied 1.0) exists
@@ -896,6 +930,8 @@ reference — not a price target.
 Total campaign cost: ~$16.5 billion
 Total human verifiers: ~155 million voters
 Cost per verifier: ~$106
+
+[world · OpenSecrets projected $15.9 billion for the 2024 federal election, not $16.5 billion; at $15.9B over ~155M voters the cost per verifier is ~$103 · read 2026-08-28]
 
 
 Americans have quantified the cost of distributed human consensus
@@ -1097,7 +1133,7 @@ The Three Questions That Decide This Protocol
 
 A first-generation zk-rollup with pioneering technology and hundreds
 of millions in peak value shut down in 2026 after its total value
-collapsed 99%. Its own postmortem named three causes: no users, an
+collapsed 99%. [world · Polygon zkEVM shut down 2026-07-01 with peak TVL of roughly $187M–$250M (CryptoTimes); the 99% figure is not confirmed in the sources read · read 2026-08-28] Its own postmortem named three causes: no users, an
 architecture that could not connect to the surrounding ecosystem,
 and a team without business development. Being technically first did
 not save it. HEXIS carries all three risks and must answer them in
