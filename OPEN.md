@@ -21,6 +21,22 @@ was actually done, because a list that deletes its closed entries cannot show
 it closed them rather than dropped them. Item 4 is corrected but NOT closed,
 and says so.
 
+**2026-08-28.** The three that remain — 4, 7 and 8 — are all blocked on the
+same thing, and it is not code. Item 4 needs corroboration from a party that
+is not us. Item 7 needs key holders who are genuinely independent. Item 8
+needs enough real audits to measure. Every one of them closes the moment a
+second operator exists, and none of them closes before that, no matter how
+much is written here. That is the honest state of this list: the remaining
+work is not engineering.
+
+Separately, the drift that produced several of the closed items now has a
+mechanical guard. `whitepaper_figures.py` holds nineteen numbers printed in
+the published paper against the constants that produce them, and eighteen
+source tags on claims about the world, and the bridge refuses to boot if any
+disagree. It checks **numbers, not mechanisms** — the wallet cap passes it
+while the claim around the wallet cap was false — so a green boot line is not
+a verified whitepaper, and the code says so in as many words.
+
 ---
 
 ## Closed
@@ -274,6 +290,14 @@ A sampling parameter running at its development value against real traffic.
 
 **Closes at: a value derived from measured audit outcomes rather than chosen.**
 Which needs enough audits to measure — there have been two.
+
+**2026-08-28, measured:** `/sampling/stats` reports `total_audits: 3`, of which
+one is still pending, so two have resolved. The endpoint also prints
+`fraud_rate: 0.5` off those two, which is exactly the kind of number this item
+exists to refuse: a rate computed from a denominator of two is not a
+measurement of anything, and calibrating σ from it would be choosing a value
+while calling it derived. Still open, and the count is now published rather
+than remembered.
 
 ### 9. Anti-concentration triggers are absolute numbers — CLOSED 2026-08-23
 

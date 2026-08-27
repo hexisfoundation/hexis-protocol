@@ -75,6 +75,112 @@ standing.
 
 ---
 
+## 2026-08-28 — The paper's numbers now stop a deploy, and sixteen claims about the world were looked up
+
+Two follow-ups from the 2026-08-23 whitepaper audit. The audit's nineteen
+false-as-run claims split into fourteen **assertions** — a control named,
+given a constant, never built — and seven **drifts**, true when written and
+overtaken by a change that reached the code and not the paper. The assertions
+died with the audit. This closes the drifts, permanently, and cites the
+sixteen claims the audit could not reach at all.
+
+### The figure validator, and what it deliberately does not do
+
+`whitepaper_figures.py` compares nineteen numbers printed in the published
+paper against the live constants that produce them, and the bridge refuses to
+boot on a mismatch. The audit named the gap in its own words — *"the paper has
+no equivalent of the nightly host-claims block; nothing re-runs its numbers
+against the system"* — and this is that equivalent, at boot rather than
+nightly, because a number that has gone wrong should stop a deploy rather than
+file a report.
+
+**It checks numbers. It cannot check mechanisms, and saying so is part of the
+change.** The line it prints reads *"numbers only — this says nothing about
+mechanisms"*, and the same sentence is in the module docstring and in
+DEPLOY.md. The wallet hard cap is in the checked table on purpose: 10,000 in
+the paper, 10,000 in `hexis_mining.WALLET_HARD_CAP`, the figure passes, and
+the sentence beside it about the cap being enforced was false for months. A
+passing boot would never have caught that. Anyone reading a green line as
+"the whitepaper is verified" has read it wrong, and the table now carries the
+counter-example that proves it.
+
+Both sides are pinned, or the check would only move the drift somewhere else.
+The repo holds a copy of the published document and the module holds its
+sha256 — the hash sealed on the chain, not one we asserted. Every figure also
+carries the exact sentence it was read out of. Reword the section and the boot
+refuses until the table is re-read.
+
+**One concession, and it was found by running the thing rather than reasoning
+about it.** Booted against an empty database, the validator refused: §18 says
+PoSP is live at σ=0.1, and a new node starts at σ=0 behind a deliberate safety
+gate. Strictly correct, and it would have made the second independent node —
+the one thing this protocol is still missing — impossible to stand up. A
+validator that makes the network impossible to join is not strict, it is
+broken. So σ=0 is announced at WARN and allowed; any third value still
+refuses. The general lesson is narrower than "be lenient": a check that
+encodes the foundation node's configuration as though it were the protocol's
+will keep out exactly the participants it needs.
+
+### Sixteen claims about the world, looked up rather than assumed
+
+The audit listed sixteen factual claims this repo cannot test and that
+carried no citation. A reader could not tell which claims were about HEXIS —
+checkable against the chain — and which were about the world. Each now carries
+an inline tag with a source and the date it was read. Eighteen tags, because
+two claims are asserted in two places.
+
+Eleven were confirmed against a primary source with a date. **Five report that
+the source does not say what the paper says**, and none of the five was
+quietly edited to match:
+
+- **x402's "480,000 AI agents, 207M transactions"**, in both places. The
+  sourceable figure is Coinbase's 69,000 active agents and 165M transactions
+  to late April 2026. The divergence was already noted privately in
+  V08_NOTES.md; it is now stated in the document itself.
+- **The RBI "suspended direct dollar purchases" line.** Not found in any
+  primary source; Bloomberg of 2026-04-20 reports the RBI *easing* forex
+  curbs. It could not be corrected in place, because it is quoted verbatim
+  inside the NEWFLOW genesis block, which is immutable and was not touched.
+  The tag carries the correction instead. This is what an append-only record
+  forces on you, and it is the right outcome rather than a workaround: the
+  claim stands where it stood, and the correction stands beside it forever.
+- **The 2024 election total.** OpenSecrets projected $15.9B, not $16.5B, so
+  cost per verifier is ~$103 rather than ~$106.
+- **The zk-rollup's "collapsed 99%".** The shutdown is real and dated; that
+  figure is not confirmed in the sources read.
+
+The bridge refuses to boot if a tag goes missing or carries no read date. The
+count is a constant in the code: adding a claim about the world means adding a
+tag and raising the count, in that order. A count going up is a deliberate
+act; a tag quietly going missing is not — and a tag is easiest to delete
+exactly when it has become inconvenient, which describes five of these
+eighteen.
+
+### Two things that were verified rather than assumed
+
+The source tags were inserted into the same document the figure validator
+reads, so a tag landing inside a quoted sentence would have silently broken a
+figure check. All nineteen quotes were re-checked against the edited text
+before anything was published. They survived; that was measured, not hoped.
+
+And the paper was re-sealed at chain sequence 559 before the pinned hash moved,
+so the constant in the code names a hash that exists on the chain rather than
+one this machine chose.
+
+### `ots_anchor` now says what its own check proves
+
+The `how_to_check` field told a reader how to run the verification and not
+what the verification buys them. `--no-bitcoin` quietly swaps the trust
+anchor: the reader is no longer validating the Bitcoin chain, they are
+comparing a merkle root against whatever a block explorer publishes for that
+height. Worth doing — it catches a forged proof — but a reader must not walk
+away believing they verified against Bitcoin when they verified against a
+website. `ots/HOW_TO_VERIFY.md` had said this since 2026-08-20; the chain row
+had not, and the row is what a reader holds when the guide is not in front of
+them. Rows written from here on carry it; the existing ones cannot change.
+
+---
+
 ## 2026-08-23 — Sampling selection was choosable; fixed with commit-reveal, through one deadlock and one crashloop
 
 The heaviest finding of the whitepaper audit is now closed. PoSP selection was
