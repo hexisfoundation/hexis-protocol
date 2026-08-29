@@ -11,8 +11,7 @@ Designed to handle 10M registered actors on single $6/mo VPS through:
   - Async write queue (batched writes)
   - Honest backpressure (429 with Retry-After)
 
-HEXIS Foundation — no legal entity, by design.
-Authenticity is cryptographic, not jurisdictional.
+Hexis Foundation — no legal entity, by design
 contact@hexisfoundation.org
 """
 
@@ -36,6 +35,12 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+# Local module, added 2026-08-14. It must be deployed in the same `mv` as this
+# file: `py_compile` checks syntax, not imports, so a cutover that leaves it
+# behind passes every pre-flight check and then fails at startup forever, five
+# seconds apart, under Restart=always. See DEPLOY.md.
+import hexis_reconcile
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("hexis")
 
@@ -45,7 +50,7 @@ log = logging.getLogger("hexis")
 # ============================================================
 
 DB_PATH = "/opt/hexis_newflow/hexis.db"
-SERVER_VERSION = "0.6.1"
+SERVER_VERSION = "0.8.0"
 
 # Rate limits (sliding window)
 RATE_LIMIT_PER_IP_PER_SEC = 10       # max 10 req/sec per IP
@@ -61,6 +66,10 @@ MAX_QUEUE_SIZE = 10000               # write queue cap
 CACHE_TRUST_TTL_SEC = 30             # /trust/{id} cached 30s
 CACHE_LEADERBOARD_TTL_SEC = 60       # /leaderboard cached 60s
 CACHE_MAX_ENTRIES = 100000           # LRU cap
+
+# Reconciliation (2026-08-14)
+RECONCILE_INTERVAL_SEC = 3600        # recompute the stored totals hourly
+RECONCILE_MAX_REPORTED = 20          # listed per report; the count is never capped
 
 # Connection pool
 DB_READ_POOL_SIZE = 20               # concurrent reads
@@ -275,9 +284,16 @@ class DBPool:
                 last_used INTEGER,
                 calls_today INTEGER DEFAULT 0,
                 day_start INTEGER,
-                tier TEXT DEFAULT 'free'
+                tier TEXT DEFAULT 'free',
+                label TEXT,
+                -- Which actor_ids this key may credit: a comma-separated list,
+                -- or '*'. NULL means no authorisation was ever recorded, and
+                -- key_may_credit() refuses it. Added 2026-08-23 (OPEN.md #2).
+                actor_scope TEXT
             );
 
+            -- Added after api_keys existed, so CREATE TABLE above will not
+            -- add it to a database that predates it. Refused keys, not crashes.
             CREATE TABLE IF NOT EXISTS network_stats (
                 key TEXT PRIMARY KEY,
                 value REAL
@@ -286,6 +302,23 @@ class DBPool:
             INSERT OR IGNORE INTO network_stats(key, value) VALUES('total_events', 0);
             INSERT OR IGNORE INTO network_stats(key, value) VALUES('total_hexis_mined', 0);
         """)
+
+        # `label` was added to api_keys on 2026-08-14. CREATE TABLE IF NOT
+        # EXISTS does nothing to a table that already exists, so a database
+        # created before that date needs the column added explicitly or every
+        # key issuance fails on a table the schema block claims is correct.
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(api_keys)")}
+        if "label" not in cols:
+            conn.execute("ALTER TABLE api_keys ADD COLUMN label TEXT")
+        # `actor_scope` added 2026-08-23, same reasoning. It arrives NULL on any
+        # pre-existing key, and key_may_credit() refuses a NULL scope rather
+        # than reading it as permission. That is deliberate: widening old keys
+        # to "*" during a migration would grant exactly the authority this
+        # column exists to withhold. There are zero keys in the live database,
+        # so nothing is being broken here — but the default would be the same
+        # if there were.
+        if "actor_scope" not in cols:
+            conn.execute("ALTER TABLE api_keys ADD COLUMN actor_scope TEXT")
 
     @asynccontextmanager
     async def read(self):
@@ -425,8 +458,32 @@ def compute_hexis(fee: float, country: str, event_type: str, tier: int = 1) -> f
     return round(hexis, 6)
 
 
-def compute_grade(score: float) -> Tuple[str, float]:
-    """Returns (grade, x402_collateral_multiplier)."""
+def compute_grade(score: float, known: bool = True) -> Tuple[str, float]:
+    """
+    Returns (grade, x402_collateral_multiplier).
+
+    `known` is whether this store holds any record of the actor at all, and it
+    is the whole point of this function's second parameter existing.
+
+    Until 2026-08-23 there was no such parameter. A score of zero because the
+    actor was never seen and a score of zero because the actor was seen and
+    earned nothing returned the same verdict: Reject, at 10.0x collateral. This
+    store is fed only by POST /integrity/submit and holds no actors at all,
+    while the bridge holds four that have earned HEXIS through compute jobs.
+    So every real actor on the network was told, by the service named "HEXIS
+    Trust API", that it was rejected — three of them graded Moderate or Low a
+    hostname away.
+
+    An absent record is not a bad record. It is the absence of one, and the
+    only defensible verdict over it is that nothing is known. `Unverified`
+    carries 0.0 rather than a multiplier because a collateral number would be
+    a claim, and there is nothing here to base one on. That is exactly how the
+    bridge has always treated a zero score (`get_trust_grade`, grade
+    "Unverified", collateral_mult 0.0); the two services now agree on the
+    meaning of not knowing.
+    """
+    if not known:
+        return "Unverified", 0.0
     if score >= 0.05:
         return "High", 1.0
     elif score >= 0.005:
@@ -451,31 +508,311 @@ class IntegrityEventSubmit(BaseModel):
     tier: int = Field(default=1, ge=1, le=4)
 
 
-class APIKeyCreateRequest(BaseModel):
-    label: Optional[str] = Field(default=None, max_length=64)
+# APIKeyCreateRequest was deleted 2026-08-14 with POST /keys/create. Keys are
+# issued on the host now, so nothing parses a key request off the network.
 
 
 # ============================================================
-# AUTHENTICATION (optional API key with rate quota)
+# AUTHENTICATION (2026-08-14)
+#
+# What was here before was named `check_api_key` and authenticated nothing. It
+# returned None for a missing, malformed or unknown key instead of raising, and
+# the one endpoint that depended on it used the result like this:
+#
+#     if api_key:
+#         if api_key.get("tier") == "free":
+#             pass
+#
+# So `POST /integrity/submit` was open to anyone, and the caller chose both the
+# actor_id being credited and, through `fee`/`country`/`tier`, the amount. One
+# anonymous request put any actor_id at the top trust grade: the High threshold
+# is 0.05 and a single event with fee >= 100 mints ~0.357.
+#
+# Read the failure honestly: the dependency existed, the endpoint declared it,
+# and every review that looked for "is this endpoint authenticated" would have
+# found a Depends() and stopped. It typechecked. It just did not refuse
+# anybody. `Optional[dict]` returning None on failure is what let it through
+# — the type says "there may be no key" and the code above says "and that is
+# fine".
 # ============================================================
 
-async def check_api_key(authorization: Optional[str] = Header(default=None)) -> Optional[dict]:
-    """Returns key info if provided and valid; None if no key (anonymous)."""
+async def require_api_key(authorization: Optional[str] = Header(default=None)) -> dict:
+    """
+    A valid API key, or 401. Never returns None — that was the bug.
+
+    Keys are issued off the network (`--create-key`, below). This proves *who*
+    is calling, and only that. Which actor_id they may credit is a separate
+    question, asked by key_may_credit() at the write site since 2026-08-23;
+    before that it was asked nowhere and any keyholder could mint trust for
+    anybody.
+    """
     if not authorization or not authorization.startswith("Bearer "):
-        return None
-    key = authorization.replace("Bearer ", "").strip()
+        raise HTTPException(401, {
+            "error": "api_key_required",
+            "reason": "send Authorization: Bearer <key>; keys are issued off "
+                      "the network and POST /keys/create is gone",
+        })
+    key = authorization[len("Bearer "):].strip()
     if len(key) < 16:
-        return None
+        raise HTTPException(401, {"error": "api_key_malformed"})
+
     prefix = key[:8]
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     async with db.read() as conn:
         row = conn.execute(
-            "SELECT * FROM api_keys WHERE key_prefix = ? AND key_hash = ?",
-            (prefix, key_hash)
+            "SELECT * FROM api_keys WHERE key_prefix = ?", (prefix,)
         ).fetchone()
-        if row:
-            return dict(row)
-    return None
+    # Compare the hash rather than let SQL do it, so a wrong key costs the same
+    # time as a right one.
+    if row is None or not hmac.compare_digest(row["key_hash"], key_hash):
+        raise HTTPException(401, {"error": "api_key_unknown"})
+    return dict(row)
+
+
+# Read by the startup audit to tell a guarded write from an unguarded one.
+require_api_key._hexis_api_key_guard = True
+
+
+ACTOR_SCOPE_ANY = "*"
+
+
+def key_may_credit(row: dict, actor_id: str) -> Tuple[bool, str]:
+    """
+    Whether this key is allowed to credit this actor. Authorisation, which is
+    not the same question as authentication and until 2026-08-23 was not asked.
+
+    A key proved *who* called. It established nothing about which actor_id the
+    caller might name, so any keyholder could mint trust for anybody — the
+    defect recorded as OPEN.md #2, whose closing condition was "before any key
+    is ever issued to a third party". No key has ever been issued at all, so
+    this lands with nothing in front of it to break.
+
+    Fails closed on purpose. A key with no scope recorded is refused rather
+    than waved through, because the alternative reproduces exactly the bug
+    that cost this project two junk chain rows: a check that cannot answer,
+    answering yes. There is no migration granting old keys "*" — there are no
+    old keys, and if there were, silently widening them would be the wrong
+    default anyway.
+    """
+    scope = (row.get("actor_scope") or "").strip()
+    if not scope:
+        return False, (
+            "this key has no actor_scope recorded and is refused. keys issued "
+            "before 2026-08-23 predate authorisation; reissue with "
+            "--create-key <label> <actor_id[,actor_id...]|*>")
+    if scope == ACTOR_SCOPE_ANY:
+        return True, ""
+    allowed = {s.strip() for s in scope.split(",") if s.strip()}
+    if actor_id in allowed:
+        return True, ""
+    return False, (
+        f"this key is not authorised to credit '{actor_id}'. authentication "
+        f"proves who called; it does not decide whose trust they may mint")
+
+
+def mint_api_key(db_path: str, label: Optional[str] = None,
+                 actor_scope: Optional[str] = None) -> str:
+    """
+    Issue a key. Not reachable over the network, by design.
+
+    `POST /keys/create` used to do this for anyone who asked, unauthenticated
+    and unlimited. Gating it leaves the question of who may mint a key, and the
+    answer here is deliberately the boring one: whoever has a shell on the
+    host. That is the trust boundary this system already has, so it invents
+    nothing — no operator key, no admin endpoint, no second credential to
+    protect.
+
+    `actor_scope` is which actor_ids the key may credit: a comma-separated list,
+    or "*" for any. Required — a key with no scope authenticates and authorises
+    nothing, which is the point.
+
+        python3 hexis_api_v0.6.1.py --create-key "label" "actor_a,actor_b"
+    """
+    if not actor_scope or not actor_scope.strip():
+        raise ValueError(
+            "actor_scope is required: a comma-separated list of actor_ids this "
+            "key may credit, or '*' for any. A key without one can call "
+            "nothing, so issuing it would only look like access.")
+    raw_key = secrets.token_urlsafe(32)
+    conn = sqlite3.connect(db_path, isolation_level=None)
+    try:
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO api_keys(key_prefix, key_hash, created, day_start, "
+            "tier, label, actor_scope) VALUES(?, ?, ?, ?, 'free', ?, ?)",
+            (raw_key[:8], hashlib.sha256(raw_key.encode()).hexdigest(), now,
+             now, label, actor_scope.strip()),
+        )
+    finally:
+        conn.close()
+    return raw_key
+
+
+# Write routes that legitimately carry no key guard. Every entry needs a
+# reason: this list is the only way a write escapes authentication, and the
+# bridge's version of it is what found seven unguarded routes nobody had
+# inventoried.
+UNGUARDED_WRITE_ROUTES = {
+    # Returns 410 Gone unconditionally and touches no state.
+    "/keys/create",
+}
+
+
+def audit_write_route_protection(app_) -> list:
+    """
+    Refuse to start if any write route is unauthenticated.
+
+    The same check the bridge runs, for the same reason. This service went five
+    months with its only write endpoint open because the guard was present and
+    inert; a check that asks "does a POST route carry a working guard" would
+    have said no on the first boot.
+    """
+    from fastapi.routing import APIRoute
+
+    write_methods = {"POST", "PUT", "PATCH", "DELETE"}
+    unguarded = []
+    for route in app_.routes:
+        if not isinstance(route, APIRoute) or not (route.methods & write_methods):
+            continue
+        if route.path in UNGUARDED_WRITE_ROUTES:
+            continue
+        guarded = any(
+            getattr(d.dependency, "_hexis_api_key_guard", False)
+            for d in route.dependencies
+        ) or any(
+            getattr(d.call, "_hexis_api_key_guard", False)
+            for d in route.dependant.dependencies
+        )
+        if not guarded:
+            unguarded.append(f"{sorted(route.methods)} {route.path}")
+    return unguarded
+
+
+# ============================================================
+# RECONCILIATION (2026-08-14)
+#
+# `actors.hexis_score`, `network_stats.total_hexis_mined` and
+# `network_stats.total_events` are running totals mutated in place. The `events`
+# table is the ledger that produced them, and nothing compared the two — the
+# Harmony shape recorded in CORRECTIONS.md. hexis_reconcile.py is the
+# comparison; this section is when it runs and what happens when it disagrees.
+# ============================================================
+
+class ReconcileState:
+    """Last result and counters, so a mismatch is visible without reading logs."""
+
+    def __init__(self):
+        self.runs = 0
+        self.mismatches = 0
+        self.last: Optional[hexis_reconcile.ReconcileResult] = None
+        self.last_ok_at: Optional[str] = None
+        self.last_record_written = False
+
+    def observe(self, result, recorded: bool):
+        self.runs += 1
+        self.last = result
+        self.last_record_written = recorded
+        if result.ok:
+            self.last_ok_at = result.checked_at
+        else:
+            self.mismatches += 1
+
+    def summary(self) -> dict:
+        if self.last is None:
+            return {"ok": None, "runs": 0, "reason": "has not run yet"}
+        return {
+            "ok": self.last.ok,
+            "last_run": self.last.checked_at,
+            "source": self.last.source,
+            "runs": self.runs,
+            "mismatches": self.mismatches,
+            "discrepancy_count": self.last.discrepancy_count,
+            "last_ok": self.last_ok_at,
+            "actors": self.last.actors_checked,
+            "events": self.last.events_total,
+            "recorded": self.last_record_written,
+        }
+
+
+reconcile_state = ReconcileState()
+
+
+async def run_reconcile(source: str, *, fatal: bool):
+    """
+    Recompute, record, then decide.
+
+    The order matters: the record is written *before* anything raises, so the
+    boot that refuses to complete still leaves the reason on disk. A validator
+    whose failure is only visible in a log the incident may also destroy is
+    most of the way back to having no validator.
+
+    `fatal` is True at boot and False afterwards, and the asymmetry is
+    deliberate. At startup a mismatch is an outage; once the service is up,
+    taking it down over a number that is already wrong helps nobody, so the
+    running check logs, records, and shows the failure through /health,
+    /status and /metrics instead.
+    """
+    async with db.read() as conn:
+        # `to_thread` because the reconcile is synchronous SQLite work: at this
+        # database's current size it is microseconds, at the size this service
+        # was designed for it is not, and blocking the event loop on an hourly
+        # timer is the kind of thing that only shows up under load.
+        result = await asyncio.to_thread(
+            hexis_reconcile.reconcile_hexis_db,
+            conn,
+            source=source,
+            db_path=DB_PATH,
+            max_reported=RECONCILE_MAX_REPORTED,
+        )
+
+    record_path = hexis_reconcile.default_record_path(DB_PATH)
+    recorded = True
+    try:
+        await asyncio.to_thread(hexis_reconcile.append_record, record_path, result)
+    except OSError as e:
+        recorded = False
+        log.error("reconcile record could not be written to %s: %s", record_path, e)
+
+    reconcile_state.observe(result, recorded)
+    report = hexis_reconcile.format_report(result)
+    (log.error if not result.ok else log.info)("%s", report)
+
+    if fatal and not recorded:
+        # A check that cannot record itself is most of the way to not having
+        # run. At boot that is a disk or permission fault worth stopping for;
+        # it is also trivially fixable, unlike the mismatch case below.
+        raise RuntimeError(
+            f"reconcile could not write its record to {record_path} — "
+            "fix the path or permissions; the check is not trusted without it"
+        )
+    if fatal and not result.ok:
+        raise RuntimeError(
+            "hexis.db does not reconcile:\n" + report +
+            f"\nFull report appended to {record_path}. Nothing was repaired: a "
+            "mismatch does not say which side is wrong, and rewriting the "
+            "totals to match the rows would destroy the evidence in the case "
+            "where it is rows that went missing. Diagnose with "
+            "`python3 hexis_api_v0.6.1.py --reconcile`."
+        )
+    return result
+
+
+async def _reconcile_loop():
+    """
+    Sleeps first, deliberately.
+
+    With `Restart=always` and `RestartSec=5`, anything a startup path does
+    immediately runs every five seconds during a crash loop. t=0 is already
+    covered by the boot check, so the timer's job starts one interval later.
+    """
+    while True:
+        await asyncio.sleep(RECONCILE_INTERVAL_SEC)
+        try:
+            await run_reconcile("periodic", fatal=False)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # never let the timer die quietly
+            log.error("reconcile loop error: %s", e)
 
 
 # ============================================================
@@ -531,24 +868,62 @@ async def lifespan(app: FastAPI):
     log.info("HEXIS API v%s starting", SERVER_VERSION)
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     await db.init()
+
+    # Refuse to serve if any write endpoint is unauthenticated. A hole found at
+    # startup is an outage; the same hole found later is an incident.
+    unguarded = audit_write_route_protection(app)
+    if unguarded:
+        raise RuntimeError(
+            "unauthenticated write routes: " + ", ".join(unguarded) +
+            " — attach Depends(require_api_key) or add the route to "
+            "UNGUARDED_WRITE_ROUTES with a reason"
+        )
+    log.info("Write-route key audit passed.")
+
+    # Refuse to serve totals that disagree with the rows beneath them. Run
+    # before the write queue starts, so nothing is in flight while it reads.
+    await run_reconcile("boot", fatal=True)
+
     await write_queue.start()
-    log.info("Ready. Capacity: %d concurrent. Cache: %d entries.",
-             MAX_CONCURRENT_REQUESTS, CACHE_MAX_ENTRIES)
+    reconcile_task = asyncio.create_task(_reconcile_loop())
+    log.info("Ready. Capacity: %d concurrent. Cache: %d entries. "
+             "Reconcile every %ds.",
+             MAX_CONCURRENT_REQUESTS, CACHE_MAX_ENTRIES, RECONCILE_INTERVAL_SEC)
     yield
+    reconcile_task.cancel()
     log.info("Shutting down")
 
 
 app = FastAPI(
     title="HEXIS Trust API",
-    description="Proof of Integrity v0.6.1 - hexisfoundation.org",
+    description="Proof of Integrity v0.8.0 - hexisfoundation.org",
     version=SERVER_VERSION,
     lifespan=lifespan,
 )
 app.middleware("http")(rate_limit_middleware)
+# Tightened 2026-08-14. Was allow_origins=["*"] with POST allowed, on a service
+# whose only write endpoint required nothing — so any page a browser loaded
+# could mint trust from the visitor's machine.
+#
+# Be clear about what this does and does not do: CORS is a policy the *browser*
+# enforces on reading responses. A form-encoded POST is a "simple request", it
+# is sent without a preflight whatever is configured here, and the server still
+# processes it. Restricting methods and origins removes the convenient path and
+# stops arbitrary sites reading our responses; it is not what closed the hole.
+# `require_api_key` on /integrity/submit is.
+#
+# Reads stay open to our own pages. Nothing cross-origin may write, and no
+# credentials are accepted cross-origin at all.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST"],
+    allow_origins=[
+        "https://hexisfoundation.org",
+        "https://www.hexisfoundation.org",
+        "https://api.hexisfoundation.org",
+        "https://bridge.hexisfoundation.org",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
@@ -570,8 +945,21 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Load balancer health check."""
-    return {"status": "ok", "version": SERVER_VERSION}
+    """
+    Load balancer health check.
+
+    Reports a failed reconcile in the body and keeps returning 200. That is
+    DEPLOY.md's own rule — verify by content, never by status code — applied to
+    this service: an external uptime probe reading only the status line is not
+    a reason to flip a service out of rotation, but "ok" while the stored
+    totals disagree with the rows is a lie, so the word changes.
+    """
+    rec = reconcile_state.summary()
+    return {
+        "status": "degraded" if rec.get("ok") is False else "ok",
+        "version": SERVER_VERSION,
+        "reconcile": rec,
+    }
 
 
 @app.get("/status")
@@ -594,6 +982,18 @@ async def status():
         "queue_pending": write_queue.queue.qsize(),
         "queue_processed": write_queue.processed,
         "queue_dropped": write_queue.dropped,
+        # CORRECTIONS.md notes that this one response mixes stored figures with
+        # computed ones and marks neither, which is how a reader ends up
+        # trusting a stored number because the number beside it happens to be
+        # derived. Marked now. `events` and `hexis_mined` are still stored
+        # totals — what changed is that they are reconciled against `events`
+        # hourly and at boot, and `reconcile` below says when that last held.
+        "derivation": {
+            "actors": "computed",
+            "events": "stored",
+            "hexis_mined": "stored",
+        },
+        "reconcile": reconcile_state.summary(),
     }
     await cache.set("status", result)
     return result
@@ -616,6 +1016,7 @@ async def metrics():
             "processed": write_queue.processed,
             "dropped": write_queue.dropped,
         },
+        "reconcile": reconcile_state.summary(),
     }
 
 
@@ -644,17 +1045,36 @@ async def get_trust(actor_id: str):
         events = row["event_count"] or 0
         country = row["country"]
 
-    grade, collateral_mult = compute_grade(score)
+    known = row is not None
+    grade, collateral_mult = compute_grade(score, known=known)
+    accept = known and grade != "Reject"
     result = {
         "actor_id": actor_id,
         "hexis_score": round(score, 6),
         "grade": grade,
         "event_count": events,
         "country": country,
+        "known_here": known,
+        # Where this answer comes from, said in the answer itself rather than
+        # left for a reader to infer from a zero. This store is not the
+        # network's record; it is one of two, it is fed by a different path,
+        # and for now it is empty. A caller deciding whether to transact needs
+        # to know which of those produced the number above.
+        "store": {
+            "scope": "events submitted to this service via POST /integrity/submit",
+            "separate_from": "https://bridge.hexisfoundation.org",
+            "note": (
+                "'Unverified' means this store holds no record of the actor. "
+                "It is not a judgement about the actor and must not be read as "
+                "one. Actors that earned HEXIS through NEWFLOW compute jobs are "
+                "recorded on the bridge: GET "
+                "https://bridge.hexisfoundation.org/trust/{actor_id}. The two "
+                "stores are not synchronised and can disagree."),
+        },
         "x402_headers": {
             "X-Hexis-Score": f"{score:.6f}",
             "X-Hexis-Grade": grade,
-            "X-Hexis-Accept": "true" if grade != "Reject" else "false",
+            "X-Hexis-Accept": "true" if accept else "false",
             "X-Hexis-Collateral-Mult": f"{collateral_mult:.1f}",
         },
     }
@@ -666,12 +1086,25 @@ async def get_trust(actor_id: str):
 async def submit_integrity_event(
     event: IntegrityEventSubmit,
     request: Request,
-    api_key: Optional[dict] = Depends(check_api_key),
+    api_key: dict = Depends(require_api_key),
 ):
     """
     Submit honest behavior event. Goes to async write queue.
-    Per-actor rate limit applies.
+    Requires a valid API key since 2026-08-14, and since 2026-08-23 a key that
+    is authorised for the actor_id being credited. Per-actor rate limit applies.
     """
+    # AUTHORISATION (2026-08-23, OPEN.md #2). Asked before anything else this
+    # endpoint does, because every step below it writes or reserves something
+    # on behalf of an actor the caller has now been shown to be entitled to
+    # name. A key proved who called; this decides whose trust they may mint.
+    allowed, why = key_may_credit(api_key, event.actor_id)
+    if not allowed:
+        raise HTTPException(403, {
+            "error": "actor_not_in_key_scope",
+            "actor_id": event.actor_id,
+            "reason": why,
+        })
+
     # per-actor rate limit
     ok_actor, retry_actor = await rate_limiter.check(
         f"actor:{event.actor_id}",
@@ -685,12 +1118,13 @@ async def submit_integrity_event(
             headers={"Retry-After": str(retry_actor)},
         )
 
-    # API key tier check
-    if api_key:
-        # check daily quota for free tier
-        if api_key.get("tier") == "free":
-            # simplified: increment counter (full impl would check day_start)
-            pass
+    # NOTE: the free-tier daily quota is NOT enforced. `calls_today` and
+    # `last_used` exist in the schema and are written by no code path, so
+    # GET /usage/{prefix} reports 0 forever and the "1000 calls/day" in /docs
+    # is not a limit. Left as it is rather than half-implemented: the block
+    # that used to sit here was `if tier == "free": pass`, which is how an
+    # unenforced quota reads as an enforced one. Recorded in CORRECTIONS.md.
+    # Per-actor and per-IP rate limits above are real and do apply.
 
     # compute HEXIS (the formula is deterministic and fast)
     hexis_minted = compute_hexis(
@@ -785,25 +1219,38 @@ async def leaderboard(limit: int = 100):
     return result
 
 
-@app.post("/keys/create")
-async def create_api_key(req: APIKeyCreateRequest):
-    """Generate a new API key. Free tier: 1000 calls/day."""
-    raw_key = secrets.token_urlsafe(32)
-    prefix = raw_key[:8]
-    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
-    now = int(time.time())
-    async with db.write() as conn:
-        conn.execute("""
-            INSERT INTO api_keys(key_prefix, key_hash, created, day_start, tier)
-            VALUES(?, ?, ?, ?, 'free')
-        """, (prefix, key_hash, now, now))
-    return {
-        "api_key": raw_key,
-        "prefix": prefix,
-        "tier": "free",
-        "rate_limit": f"{RATE_LIMIT_FREE_TIER_PER_DAY} calls/day",
-        "warning": "Save this key. It cannot be recovered.",
-    }
+@app.post(
+    "/keys/create",
+    # 2026-08-23. The prose docs above said "Gone (410) since 2026-08-14" from
+    # the day it closed; the machine-readable contract did not. /openapi.json
+    # carried `deprecated: false` and a summary FastAPI derived from the
+    # function name — "Create Api Key Gone" — so any client generated from the
+    # spec got a working-looking method that 410s, and the word "Gone" reached
+    # the public contract only by accident. A doc a human reads and a doc a
+    # generator reads are both published surfaces.
+    deprecated=True,
+    summary="Gone (410) — keys are issued off the network",
+    description=(
+        "**410 Gone since 2026-08-14.** This issued, to any anonymous caller "
+        "and without limit, the key that authenticates every write on this "
+        "service. Keys are issued on the host now; ask an operator."),
+)
+async def create_api_key_gone():
+    # GATED 2026-08-14. This minted a credential to anyone who asked,
+    # unauthenticated and unlimited, and that credential is now the only thing
+    # standing in front of /integrity/submit. An endpoint that issues the key
+    # required to reach it is not a gate; it is a queue.
+    #
+    # Keys are issued on the host instead — `--create-key`, see mint_api_key.
+    # No new credential was invented to protect this: shell access is the trust
+    # boundary the system already has.
+    raise HTTPException(
+        status_code=410,
+        detail="gone: POST /keys/create is internal-only since 2026-08-14. It "
+               "issued, to any anonymous caller and without limit, the key "
+               "that authenticates writes. Keys are issued off the network; "
+               "ask an operator.",
+    )
 
 
 @app.get("/usage/{key_prefix}")
@@ -839,6 +1286,7 @@ Heavily cached (30s TTL).
 ### POST /integrity/submit
 Submit honest behavior event. Async write queue.
 Body: actor_id, country, fee, event_type, tier (1-4)
+Requires `Authorization: Bearer <key>`. Returns 401 without one.
 
 ### GET /integrity/{{actor_id}}
 Recent events for actor. Cached 10s.
@@ -847,7 +1295,9 @@ Recent events for actor. Cached 10s.
 Top actors by HEXIS score. Cached 60s.
 
 ### GET /status
-Public network stats.
+Public network stats. `derivation` says which figures are stored totals and
+which are computed; `reconcile` says when the stored ones were last checked
+against the events that produced them.
 
 ### GET /health
 Health check (no rate limit).
@@ -856,14 +1306,19 @@ Health check (no rate limit).
 Internal ops metrics.
 
 ### POST /keys/create
-Generate API key. Free tier: 1000 calls/day.
+**Gone (410) since 2026-08-14.** It issued, to any anonymous caller and
+without limit, the key that authenticates writes. Keys are issued off the
+network now; ask an operator.
 
 ## Rate Limits
 
 - 10 req/sec per IP
 - 300 req/min per IP
 - 60 events/min per actor
-- 1000 calls/day for free API key
+
+The "1000 calls/day for a free API key" that stood here was never enforced.
+`calls_today` is written by no code path, so the quota did not exist and this
+page was the only place it did. The three limits above are real.
 
 ## Capacity
 
@@ -897,13 +1352,71 @@ Geography is not a tax on integrity.
 # ============================================================
 
 if __name__ == "__main__":
+    import sys
+
+    # Key issuance lives here rather than on the network. Run it on the host:
+    #     python3 hexis_api_v0.6.1.py --create-key "partner name"
+    if "--create-key" in sys.argv:
+        i = sys.argv.index("--create-key")
+        label = sys.argv[i + 1] if len(sys.argv) > i + 1 else None
+        scope = sys.argv[i + 2] if len(sys.argv) > i + 2 else None
+        if not label or not scope:
+            print('usage: --create-key "<label>" "<actor_id[,actor_id...]|*>"')
+            print()
+            print("The scope is which actor_ids the key may credit. It is not")
+            print("optional: a key with no scope can call nothing, so issuing")
+            print("one would only look like access. Use '*' deliberately, and")
+            print("only for a caller entitled to credit anybody.")
+            sys.exit(2)
+        try:
+            _key = mint_api_key(DB_PATH, label, scope)
+        except ValueError as _e:
+            print(f"refused: {_e}")
+            sys.exit(1)
+        print(f"api_key : {_key}")
+        print(f"prefix  : {_key[:8]}")
+        print(f"label   : {label}")
+        print(f"scope   : {scope}")
+        print("This is the only time the key is shown. It is stored hashed.")
+        sys.exit(0)
+
+    # Read-only reconcile without starting the service. This is what to run
+    # when the boot check has refused to start: it prints the same report the
+    # service would have logged, and appends the same record, without needing
+    # the port or the service to be up.
+    #
+    # There is no --repair, on purpose. A mismatch does not say which side is
+    # wrong. Deciding that is a person's job, and the repair is a SQL statement
+    # written after that decision — see DEPLOY.md.
+    if "--reconcile" in sys.argv:
+        _result = hexis_reconcile.run_and_record(DB_PATH, source="cli")
+        print(hexis_reconcile.format_report(_result))
+        print(f"record  : {hexis_reconcile.default_record_path(DB_PATH)}")
+        sys.exit(0 if _result.ok else 1)
+
     import uvicorn
     uvicorn.run(
-        "hexis_api_v0_6_1:app",
-        host="0.0.0.0",
+        app,
+        # LOOPBACK ONLY since 2026-08-14. Was "0.0.0.0", for the same reason
+        # and with the same consequence as the bridge on 8400: nginx already
+        # proxies here from api.hexisfoundation.org
+        # (sites-available/api.hexisfoundation.org, proxy_pass
+        # http://127.0.0.1:8401), so nothing public changes, and what goes away
+        # is a second path straight to the app that skipped nginx.
+        #
+        # ufw restricted 8401 to Cloudflare's origin ranges, which is not a
+        # restriction — those are the egress addresses of every Cloudflare
+        # Worker. Combined with access_log=False below, a request arriving that
+        # way was unfiltered AND unrecorded. That combination is what made the
+        # August /stake/credit review unresolvable on the bridge; this service
+        # had it too, and was checked only because the bridge was.
+        host="127.0.0.1",
         port=8401,
         workers=1,
         loop="asyncio",
         log_level="info",
+        # As on the bridge: this process keeps no record of any request it
+        # serves. nginx's access.log is the only one, and it is only complete
+        # because host is loopback above.
         access_log=False,
     )
