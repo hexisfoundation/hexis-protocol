@@ -22,7 +22,7 @@ Same hardening as API v0.6.1:
   - Async write queue for jobs
   - Connection pool to SQLite WAL
 
-Hexis Foundation - Singapore
+Hexis Foundation — no legal entity, by design
 """
 
 import asyncio

@@ -171,6 +171,37 @@ paragraph; it is already in the two places named, and repeating it would add a
 third for no gain. This is recorded as open, not fixed: closing it is a
 decision about firewalling the origin, not about deleting a string.
 
+### While removing the claim, this pass published it somewhere new
+
+Recorded within the hour, because it is the sharpest thing that happened here.
+
+The sync above was gated by a secrets scan: every file was checked for keys,
+tokens, addresses, home paths and personal identifiers before publication.
+Thirteen files passed and were pushed. One of them, `hexis_bridge_v0.6.1.py`,
+carried `Hexis Foundation - Singapore` in its header docstring — and the copy
+already in the public repository did **not**. So this pass, whose stated
+purpose was removing the last MAS claim, added a Singapore claim to a public
+file that had been clean.
+
+It was caught by a full sweep of the published repository afterwards, not by
+the gate. The gate could not have caught it: **it was a scan for secrets, run
+by someone whose task was removing a false claim, and it contained no pattern
+for the false claim.** Both facts were in one head at one time and still did
+not meet, because the check had been written for the other purpose and was
+then trusted for this one.
+
+Fixed: the line now reads `Hexis Foundation — no legal entity, by design`, in
+the repository, on the host and in the published copy.
+
+The general form, which is worth more than the fix: **a gate tells you about
+the thing it was built to look for, and its silence about everything else is
+not evidence.** This is the same error as `curl … | grep -i -E "MAS|Singapore"`
+pointed only at the served pages, recorded two sections above, committed again
+one hour later by the same pass that recorded it. Neither a passing scan nor a
+passing boot validator is a statement that a file is fit to publish. Only
+reading it is, and the files still marked reference-only in `README.md` are
+marked that way for exactly this reason.
+
 ### Production was running a file that was not `origin/main`
 
 Checked while comparing hashes for the sync, not looked for. `hexis_reconcile.py`
