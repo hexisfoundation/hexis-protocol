@@ -299,6 +299,37 @@ measurement of anything, and calibrating σ from it would be choosing a value
 while calling it derived. Still open, and the count is now published rather
 than remembered.
 
+### 10. Nothing checks that the server is running what `origin/main` says
+
+Opened 2026-08-30. The standing rule is that `origin/main` is the source of
+truth and nothing reaches the server that was not pushed first. The rule is
+enforced by a person: `DEPLOY.md` prescribes a three-way hash comparison
+between the working tree, `origin/main` and the host, run per file, at deploy
+time, by whoever is deploying. It therefore covers the file that person is
+thinking about and no other file, ever.
+
+Found by measurement rather than by looking: `hexis_reconcile.py` on the
+server had not matched the repository since **2026-08-16**, fourteen days. The
+difference is four lines of docstring and changes nothing at runtime — which
+is the point. Nothing detected it, nothing would have detected a difference
+that did change something, and every deploy in those fourteen days reported
+success.
+
+This is the same gap the whitepaper had until 2026-08-28, in a different
+place: a set of claims with nothing re-running them against the system. That
+one was closed by a boot validator that refuses. This one has no equivalent.
+
+**Closes at: a scheduled comparison of every deployed file against
+`origin/main` that fails loudly on any difference** — not a deploy-time check,
+which is the thing that already exists and already missed this. A boot-time
+check is not sufficient either: the drift here began at a deploy and survived
+every restart since.
+
+Not closed by hand-checking the other files today. Doing that would produce a
+clean result and no mechanism, and the clean result would then be quoted as if
+it were a guarantee — which is precisely the failure mode `CORRECTIONS.md`
+records for the wallet cap.
+
 ### 9. Anti-concentration triggers are absolute numbers — CLOSED 2026-08-23
 
 **Both halves closed.**

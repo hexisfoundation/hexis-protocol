@@ -119,17 +119,63 @@ is withheld. Nothing is rewritten and no finding is softened.
 
 ## Files in this package
 
+**Read this before reading any code here.** On 2026-08-30 the running system
+was compared file by file against this repository, and seven files with the
+same name held different bytes — `hexis_bridge_v0.6.2.py` was published at
+43,933 bytes while the file that actually runs is 230,682. Anyone who read the
+published copy to check a claim about the bridge was reading a different
+program with the same name. That is recorded in `CORRECTIONS.md`.
+
+Most of the running modules are now here. **These are not, and are marked
+reference-only until each is reviewed line by line:**
+
 ```
-hexis_mining_v0.1.py      Core algorithm — runs standalone, no dependencies
-hexis_data_collector.py   Module 1 — News API + GDELT data collection
-hexis_ledger.py           Module 2 — IPFS decentralized storage
-hexis_classifier.py       Module 3 — Adversarial/neutral/allied classification
-hexis_pipeline.py         Full pipeline — ties all modules together
+hexis_bridge_v0.6.2.py    REFERENCE ONLY — older/smaller than the file that runs
+hexis_api_v0.6.1.py       REFERENCE ONLY — older/smaller than the file that runs
+hexis_ledger.py           REFERENCE ONLY — older than the file that runs
+hexis_audit.py            REFERENCE ONLY — older than the file that runs
+hexis_api.py              REFERENCE ONLY — an early version, kept as history
+hexis_api_v0.5.py         history
+hexis newflow bridge.py   history — superseded by hexis_newflow_bridge.py
+hexis_mining_v0.2.py      history — superseded by hexis_mining.py
+hexis_classifier.py       history
+hexis_data_collector.py   history
+hexis_pipeline.py         history
+hexis_genesis.py          history
+```
+
+They were held back by a secrets scan run before publication, not by choice:
+each contains something — an environment-variable name, a key file path, a
+server address — that a person has to look at before it is published, and
+"probably fine" is not the standard this repository is arguing for. They stay
+until that review happens. Do not treat them as the running system.
+
+**These are the running modules, synced 2026-08-30:**
+
+```
+hexis_newflow_bridge.py   NEWFLOW bridge
+newflow_core.py           Core ledger and address encoding
+scs_engine.py             Supply and halving constants
+hexis_mining.py           Mining algorithm and tokenomics constants
+hexis_geo.py              Geographic context multiplier
+hexis_identity.py         Identity registry — public key is the primary key
+hexis_ledger_entries.py   Double-entry ledger for escrow and balances
+hexis_reconcile.py        Reconciliation between the two records
+hexis_sampling.py         PoSP commit-reveal audit sampling
+hexis_severity.py         Damage tiers
+hexis_cid.py              Content addressing
+whitepaper_figures.py     Boot validator: refuses to start when the whitepaper
+                          and the code disagree about a NUMBER. Numbers only —
+                          a passing boot says nothing about any mechanism.
 verify_audit_chain.py     Third-party verifier for the live audit chain
 CORRECTIONS.md            What this project claimed and got wrong, newest first
 OPEN.md                   Defects still open, each with its closing condition
 ots/                      Bitcoin anchors for sealed chain heads, + HOW_TO_VERIFY
 ```
+
+The step-by-step guide below predates all of this and describes the original
+v0.1 pipeline. It is kept because deleting it would be tidying history, but it
+is not a description of what runs today.
 
 ---
 

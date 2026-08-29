@@ -75,6 +75,121 @@ standing.
 
 ---
 
+## 2026-08-30 — The last live MAS claim, two entries that rotted, and what the public repository was actually showing
+
+Four findings, all from one measurement pass. The first is the one that
+mattered; the rest are what looking properly turned up around it.
+
+### The MAS claim was not fully removed. It was still in running code.
+
+The 2026-08-19 pass removed `Singapore (MAS)` from the front page and the
+whitepaper, and this file recorded that as done. It was not done. The banner
+docstring at the top of `hexis_mining.py` — the tokenomics module the two
+services import at boot — still read, verbatim:
+
+    Foundation:       Singapore  (MAS) — holds zero hexis
+
+It is now:
+
+    Foundation:  no legal entity, by design — holds zero hexis
+
+No behaviour changed; it is a docstring. That is not a defence. It sat in the
+same banner as the supply table for eleven days after the correction that
+claimed to have removed it, in the module every other module reads, and the
+verification command this repository published for exactly this purpose —
+`curl … | grep -i -E "MAS|Singapore"`, in `DEPLOY.md` — was pointed at the
+served pages and never at the source. **A check aimed only where you already
+looked is not a check.** The reason it survived is the reason the original
+error survived: it was a caption, and captions are read as decoration.
+
+The published copy `hexis_mining_v0.2.py` was already clean, so nothing false
+was being served from it. The false line was in the code that runs.
+
+### An entry in this file had gone stale, and this file may not edit itself
+
+The 2026-08-19 entry says, under *Left standing, deliberately*:
+
+> `hexis_genesis.py:52` still reads `FOUNDATION_JURIS = "Singapore"`.
+
+That was true on the day it was written and is not true now. The variable was
+removed; line 52 of the published `hexis_genesis.py` is a comment explaining
+why the value was wrong and what it would have contaminated.
+
+**The old sentence stays exactly as written.** This file is append-only, and
+an append-only record whose author edits the stale parts is a record with no
+property worth having. The correction is here, dated, beside it — which is the
+same shape the RBI line in the whitepaper had to take on 2026-08-28, and for
+the same reason. The cost is that a reader of the old entry alone is misled;
+the alternative cost is that no entry can be trusted to be what was written.
+The second cost is larger. This paragraph is the mitigation.
+
+Standing consequence, since this is now the second dated entry in this file
+that has aged out of true: **an entry describing the state of a file is a
+statement about a date, not about now.** Every one of them should be read that
+way, and a reader checking a claim against today's code should expect drift
+and look for the later entry.
+
+### A number written twice, in the file whose job is catching that
+
+`whitepaper_figures.py` — the boot validator added on 2026-08-28 to refuse a
+deploy when the paper and the code disagree about a number — carried the
+whitepaper's seal sequence in three places. The constant said `559`. The
+module docstring and the comment above the constant both said `394`, left over
+from an earlier draft.
+
+Nothing broke: the constant is what the code reads, and `394` appeared only in
+prose. But the file exists to refuse exactly this — one number, two copies,
+one of them rotted — and it was doing it to itself in its own header. Both
+prose copies are gone. The sequence now lives in the constant alone, and the
+docstring says why it is not repeated. Verified after: 19 figures, 18 source
+tags, no mismatches, exit 0, and the test suite still passes including the
+real-boot check.
+
+### What the public repository was showing, and what it now shows
+
+`hexisfoundation/hexis-protocol` is what a stranger reads to check any of
+this. Measured against the running system, seven files with the same name held
+different bytes, and the gap was not cosmetic: the published
+`hexis_bridge_v0.6.2.py` was 43,933 bytes against the 230,682 that run.
+Someone reading the public copy to verify a claim about the bridge was reading
+a different program with the same name. Nobody was lied to in a sentence; the
+lie was structural, and it is the kind this project has no excuse for, since
+the whole argument is "check it yourself".
+
+The running modules that pass a secrets scan are now published. What was
+withheld, and why, is listed in `README.md` rather than here, because a reader
+needs it at the point of reading the code and not in a changelog.
+
+**A pre-existing exposure the scan surfaced, disclosed here rather than
+quietly fixed, per this file's rule about open defects.** The origin server's
+own IP address is published — it has been in the repository and in whitepaper
+v0.6 since before this pass — while both `hexisfoundation.org` and
+`bridge.hexisfoundation.org` resolve to a CDN in front of that origin. A CDN
+in front of an address anyone can read from your own repository is not
+protecting the origin from anything. The address is not reprinted in this
+paragraph; it is already in the two places named, and repeating it would add a
+third for no gain. This is recorded as open, not fixed: closing it is a
+decision about firewalling the origin, not about deleting a string.
+
+### Production was running a file that was not `origin/main`
+
+Checked while comparing hashes for the sync, not looked for. `hexis_reconcile.py`
+on the server did not match the repository, and had not since **2026-08-16** —
+fourteen days. The difference is four lines of docstring, committed and never
+deployed, and it changes nothing at runtime.
+
+It is recorded because the size of the difference is not the finding. The
+standing rule here is that `origin/main` is the source of truth and the server
+carries what it carries, and for fourteen days that was false about one file
+while every deploy since reported success. Nothing checks it. The three-way
+hash comparison in `DEPLOY.md` is run per file at deploy time by the person
+deploying, which catches the file they are thinking about and no other. There
+is no equivalent of the nightly host-claims block for "is the server what the
+repository says" — the same gap the whitepaper had before 2026-08-28, in a
+different place. **Open**, and added to `OPEN.md`.
+
+---
+
 ## 2026-08-28 — The paper's numbers now stop a deploy, and sixteen claims about the world were looked up
 
 Two follow-ups from the 2026-08-23 whitepaper audit. The audit's nineteen
