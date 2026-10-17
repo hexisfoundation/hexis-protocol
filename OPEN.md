@@ -330,6 +330,67 @@ clean result and no mechanism, and the clean result would then be quoted as if
 it were a guarantee — which is precisely the failure mode `CORRECTIONS.md`
 records for the wallet cap.
 
+### 11. The PoSP reward mint names a consumer that an audit does not have
+
+`_posp_reward` (hexis_bridge_v0.6.2.py) pays a validator by calling
+`mine_hexis_for_job` with `job_id=f"audit_{audit_id}"`. That function builds
+every record with the same three witnesses, renamed on 2026-08-23 to things a
+reader can check — including `"Consumer signature on /job/request (consent to
+the job, not confirmation of delivery)"`. An audit has no consumer and no
+`/job/request`. The validator's record would therefore name, as a witness, a
+signature that does not exist for that record.
+
+**Measured 2026-10-15, full chain (1,946 events):** the two rewards ever paid
+are `hexis_mint` seq 124 and 131 (2026-07-24, actor the validator, 0.00027558
+each — fee 10 at prob 0.95, C = 2.0, to the digit). Both predate 2026-08-16,
+so no canonical content was retained and no witness bytes exist for them
+anywhere public; the `hexis_mint` payload carries scores, not witnesses. So
+**no wrong bytes exist today.** The audit opened at seq 227 (2026-08-17) is
+still pending. Its verdict, or any later one, mints through the same path and
+will write the false witness into a CID-addressed, chain-committed record.
+
+**Closes at:** the reward path builds its own witness set — what an audit can
+actually show (the sampling verdict row in the audit chain; the validator's
+own signed verdict; nothing about a consumer) — and the type/weight decision
+of 2026-08-23 is applied to it explicitly, not inherited by reuse. Verified by
+the next reward record carrying no consumer witness.
+
+**Not closed by:** renaming the string inside `mine_hexis_for_job` for all
+callers (that would change job records too), or by waiting for a verdict to
+see what happens.
+
+---
+
+### 12. The consumer-side mint, dormant behind Block 0, names a confirmation that has not occurred
+
+`mine_hexis_for_consumer` is reachable only through `hexis_settle_fn`, which
+is `None` by the Block 0 gate (bridge line ~2415; stake v3 `settle_complete`).
+It has never run. When the gate opens it runs **at settlement**, i.e. at job
+completion, and its witnesses are `"Worker Non-Dispute Confirmation"`
+(adversarial, 3.0) and `"On-chain ECU Settlement Record"` (neutral, 2.0). At
+that moment no dispute window has elapsed, so "non-dispute" confirms nothing;
+it is the same shape as the pre-08-23 "Consumer Confirmation" — a name for an
+event that has not happened. The settlement record is real at that moment.
+
+Found while fixing it: with two witnesses the event also fails `MIN_WITNESSES = 3`
+in `hexis_mining`, so when the gate opened the consumer side would have minted
+nothing and logged nothing — a silent no-op wearing a mechanism's name.
+
+This is not a Block 0 item and must not be read as one. It is a string in
+code that only runs after Block 0, found now, to be corrected now, so that it
+never runs wrong. Nothing here touches the gate.
+
+**Closes at:** the consumer record names only what exists at settlement (the
+settlement row; the worker's completion signature), with W recomputed from
+those two honestly, and the fact that the consumer side has thinner evidence
+stated in the record rather than compensated for by a name.
+
+**Not closed by:** leaving the strings and arguing the gate makes them
+harmless. The gate makes them *unexercised*, which is the condition under
+which the 08-23 fabrication survived for three months.
+
+Source for both: `hexis_bridge_v0.6.2.py` at commit 0e3b179 — `_posp_reward`, `mine_hexis_for_job` (witness_sources), `mine_hexis_for_consumer` (witness_sources), the Block 0 gate. Fix prepared the same day in the working tree; closes when it is deployed and the next reward record carries no consumer witness.
+
 ### 9. Anti-concentration triggers are absolute numbers — CLOSED 2026-08-23
 
 **Both halves closed.**

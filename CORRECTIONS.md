@@ -903,6 +903,26 @@ because a page that lists only what a mechanism achieves is an advertisement:
 None of those lets us make an event look older than it is. That one is closed,
 and it is the only one this layer was ever meant to close.
 
+## 2026-10-17 — The §7 disclosure printed a constant the code does not produce
+
+§7 says that with four factors never having moved, "in practice HEXIS = BO × C
+× 0.007047". The four constants are S = 1.0, W = 0.14085 (three witnesses,
+weights 3 + 2 + 1, log(7)/log(10⁶ + 1)), TDR = 0.1, T = 0.5. Their product is
+0.0070425. Re-running `hexis_mining.HexisMiner` on the inputs of the one
+record whose content is retained (event 25b0a06d…, 10 ECU, Tier 1, VN)
+reproduces its `hexis_raw` of 0.00017224 exactly with 0.0070425, and not with
+0.007047 (0.00017235). The printed constant was 0.07% high — below the
+rounding of every number it was used with, and still a number the code does
+not produce, in a document whose boot validator exists to refuse exactly that.
+It was not caught because `whitepaper_figures.py` pins nineteen figures and
+this was not one of them; it is a derived product, and the validator checks
+declared constants only, as its own docstring says.
+
+Corrected in place and dated, to 0.007042, in both places §7 prints it. Found
+while re-checking a new §7 paragraph against the miner rather than against
+the prose it was written from — the same move, reading the code instead of
+the sentence, that found the host-claims error on 2026-08-20.
+
 ## 2026-08-20 — A signed payload that depended on coreutils, and the first check that reads the host instead of the prose
 
 ### The verification instruction was fixed in the document and left wrong in the chain

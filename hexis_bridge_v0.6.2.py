@@ -1596,11 +1596,20 @@ class BridgeState:
         job_value_ecu: float,
         job_id: str,
         sensitivity_tier: int = 1,
+        witness_sources: Optional[list] = None,
+        description: Optional[str] = None,
     ) -> dict:
         """
         Auto-mine HEXIS event when NEWFLOW job completes honestly.
         Includes adversarial frame: could_have_taken vs actually_returned.
         Sensitivity tier scales BO multiplier (1x / 5x / 20x / 100x).
+
+        witness_sources / description (2026-10-17, OPEN.md #11): a caller
+        whose record is NOT a compute job — the PoSP reward is the one such
+        caller — must say what its record actually rests on. Reusing the job
+        witnesses there named a consumer signature that an audit does not
+        have. Both default to the job set when not given, so every existing
+        call is unchanged.
         """
         bo_mult = SENSITIVITY_TIERS.get(sensitivity_tier, ("", 1.0))[1]
         scaled_value = job_value_ecu * bo_mult
@@ -1614,7 +1623,7 @@ class BridgeState:
             # minted before today carries an assertion of a verification that
             # did not happen — 32 of them, permanently, because the chain is
             # append-only. What is written now is what actually occurred.
-            description             = (
+            description             = description or (
                 f"NEWFLOW compute job delivered honestly. "
                 f"Job ID: {job_id[:16]}. "
                 f"Value: {job_value_ecu:.2f} ECU. "
@@ -1646,7 +1655,7 @@ class BridgeState:
             # None of the three is an independent party. `independent_witnesses`
             # below says so in the payload rather than leaving it to be inferred
             # from three plausible-looking names.
-            witness_sources         = [
+            witness_sources         = witness_sources or [
                 {"type": "adversarial",
                  "name": "NEWFLOW validator (this host; not adversarial and "
                          "not independent — weight retained, see OPEN.md #4)"},
@@ -1739,6 +1748,16 @@ class BridgeState:
         Cung duong formula voi worker (BehaviorEvent -> HexisMiner.mine()).
         Witness set mong hon worker: khong co adversarial witness tu nhien
         phia consumer ngoai viec worker chon khong dispute.
+
+        2026-10-17, OPEN.md #12. Never run yet (gated behind Block 0 via
+        hexis_settle_fn). It runs AT settlement, i.e. at completion, when no
+        dispute window has elapsed — so the old witness "Worker Non-Dispute
+        Confirmation" named an event that has not happened, the same shape
+        as the "Consumer Confirmation" removed on 2026-08-23. And with two
+        witnesses it failed MIN_WITNESSES = 3, so when the gate opened it
+        would have minted nothing and logged nothing. The three names below
+        are things that exist at settlement; types follow the 08-23
+        convention so W matches the worker record.
         """
         bo_mult = SENSITIVITY_TIERS.get(sensitivity_tier, ("", 1.0))[1]
         scaled_value = job_value_ecu * bo_mult
@@ -1748,9 +1767,11 @@ class BridgeState:
             actor_id                = consumer_id,
             timestamp                = time.time(),
             description              = (
-                f"NEWFLOW consumer settled job honestly (paid, no dispute raised). "
+                f"NEWFLOW consumer paid for and settled the job. "
                 f"Job ID: {job_id[:16]}. Value: {job_value_ecu:.2f} ECU. "
-                f"Sensitivity tier: {sensitivity_tier} (BO x{bo_mult})."
+                f"Sensitivity tier: {sensitivity_tier} (BO x{bo_mult}). "
+                f"No dispute has been raised at settlement; the dispute window "
+                f"has not elapsed, so this is not a confirmation of non-dispute."
             ),
             actor_country            = "??",
             asset_could_have_taken   = scaled_value,
@@ -1758,8 +1779,15 @@ class BridgeState:
             prob_betrayal_detected   = 0.90,
             gain_if_betrayed         = scaled_value,
             witness_sources          = [
-                {"type": "adversarial", "name": "Worker Non-Dispute Confirmation"},
-                {"type": "neutral",     "name": "On-chain ECU Settlement Record"},
+                {"type": "adversarial",
+                 "name": f"Worker's RFC 9421 signature on /job/{job_id[:16]}/complete "
+                         f"(the counterparty's claim of delivery; not a "
+                         f"non-dispute confirmation — the window has not elapsed)"},
+                {"type": "neutral",
+                 "name": f"Audit chain job_complete row for {job_id[:16]}"},
+                {"type": "allied",
+                 "name": "Consumer's own RFC 9421 signature on /job/request "
+                         "(the actor attesting itself)"},
             ],
             mention_counts           = {"30d": 1, "1y": 0, "5y": 0},
         )
@@ -3446,9 +3474,30 @@ def _posp_reward(validator_id, _country, fee, audit_id, caught):
         pass
     vc = STATE.workers.get(validator_id, {}).get("country", "??")
     try:
+        # 2026-10-17, OPEN.md #11. Same three TYPES as a job record, so W is
+        # unchanged at 0.14085 and nothing is repriced (the 2026-08-23
+        # decision). The NAMES say what an audit record can actually show:
+        # there is no consumer and no /job/request behind it.
         STATE.mine_hexis_for_job(
             worker_id=validator_id, worker_country=vc,
-            job_value_ecu=fee, job_id=f"audit_{audit_id}", sensitivity_tier=1)
+            job_value_ecu=fee, job_id=f"audit_{audit_id}", sensitivity_tier=1,
+            description=(
+                f"PoSP audit reward. Audit ID: {audit_id[:16]}. "
+                f"Fee: {float(fee):.2f} ECU. The validator re-executed a "
+                f"sampled job and submitted a verdict; this host asserts the "
+                f"verdict was recorded and is also the party that mints. "
+                f"No consumer and no /job/request exist for this record."
+            ),
+            witness_sources=[
+                {"type": "adversarial",
+                 "name": "NEWFLOW validator (this host; not adversarial and "
+                         "not independent — weight retained, see OPEN.md #4)"},
+                {"type": "neutral",
+                 "name": f"Audit chain sampling_verdict row for audit {audit_id[:16]}"},
+                {"type": "allied",
+                 "name": f"Validator's own RFC 9421 signature on "
+                         f"/audit/{audit_id[:16]}/verdict (the actor attesting itself)"},
+            ])
     except Exception:
         pass
     STATE.log(f"PoSP reward {validator_id[:16]}...: {fee} ECU + HEXIS "

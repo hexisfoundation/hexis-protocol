@@ -606,7 +606,9 @@ Disclosure, 2026-08-23 — what the six factors actually do. Across all 32
 HEXIS records ever minted, four of them have never taken a second value:
 S = 1.0, W = 0.1408, TDR = 0.1, T = 0.5. The only automated minting path
 builds every event with identical inputs for those four, so in practice
-HEXIS = BO × C × 0.007047. The formula is six factors; two of them move.
+HEXIS = BO × C × 0.007042 (this line printed 0.007047 until 2026-10-17;
+the product of the four constants is 0.0070425). The formula is six
+factors; two of them move.
 This is a property of the one path that mints, not of the formula, and it
 is a defect in that path — but a reader is entitled to know that the table
 above describes a design and not an observed distribution.
@@ -648,6 +650,39 @@ Grade Thresholds
 |≥ 0.00010  |Minimal |5.0×           |
 |< 0.00010  |Reject  |—              |
 |no record  |Unverified|— (nothing is known; not a judgement)|
+
+How a score is built, and what one record can do to it (2026-10-15).
+The formula above prices one record. An actor's score is the sum of
+its records (`hexis_api_v0.6.1.py`, `actors.hexis_score`) — a sum,
+not a mean. That matters because of what §11.1 reports about
+ERC-8004, whose arithmetic mean has a breakdown point of zero: one
+record can move a mean to any target. A sum cannot be pulled; it can
+only be added to, and each addition is bounded. With the four
+constant factors disclosed above, a record is worth BO × C ×
+0.007042, and BO = log(gain × (1 − p) + 1) / log(10⁹ + 1) with p,
+the detection probability, fixed at 0.95 — so it saturates slowly.
+A Tier-1 job of 10 ECU gives BO = 0.0196 and 0.00017 HEXIS at
+C = 1.25, which is the value of the one record whose content is
+retained (`/hexis/records`); a Tier-4 job of 50 ECU (scaled value
+5,000, effective gain 250) gives BO ≈ 0.27 and about 0.0023. The
+ceiling at BO = 1 and C = 1.25 is 0.0088 and is not reachable. A
+single Tier-4 job of about 2 ECU, or a Tier-1 job of roughly 200
+ECU, carries an unknown actor into Low; a Tier-1 job above about
+6 ECU is Minimal. High (≥ 0.05) takes six records at the ceiling
+and about twenty-two at a realistic Tier-4 value. There is no
+negative record — nothing in the API subtracts —
+so suppression is not available to an attacker either; the only
+downward path is the wipe, and it is gated with Block 0.
+
+So the fix the ERC-8004 study points at, replacing the mean with a
+median, is the wrong fix here: there is no mean to replace. The
+exposure is additive and it has two inputs — the number of records
+an actor can self-deal, each costing a locked stake, a fee and a
+slot under the pair-frequency cap (§10), and the C multiplier an
+actor declares for itself (above, bounded at 1.25×). The one
+mean-like aggregation in the system is inside W, and W is a
+constant today (OPEN.md #4), so its breakdown point is moot until
+the witnesses behind it are real.
 
 This table was unreadable in the published .md until 2026-08-23 — it had
 collapsed into a single run of text, which is the worst place in the
@@ -868,6 +903,39 @@ everywhere: no governance to capture, no oracle to corrupt, no
 standards body to lobby. A protocol that competes can be beaten. A
 protocol that self-selects cannot.
 
+Self-selection is a stance, not a result, and the first measured
+result is now in. A study with data to 13 May 2026 read every
+ERC-8004 registration on Ethereum, BSC and Base [world · Xiong,
+Li, Wei, Wang, Knottenbelt & Wang, "Can Trustless Agents Be
+Trusted? An Empirical Study of the ERC-8004 Decentralized AI Agent
+Ecosystem", arXiv:2606.26028 v2; Tables 1, 2 and 6, §7.1, §7.3,
+§7.4; data cutoff 2026-05-13 21:49:47 UTC · read 2026-10-15]: 173,441
+agents, of which 3%, 4% and 15% respectively expose a valid
+registration file with at least one declared service endpoint —
+declared, not answering; the paper checks the file. Of the
+reviewers who rated them, 73.5%, 59.2% and 90.6% show coordinated
+Sybil behaviour; remove those and 15.8%, 77.9% and 86.8% of rated
+agents have no valid feedback left. The Reputation Registry
+aggregates by arithmetic mean, so its breakdown point is zero —
+one feedback record moves a score to any target — and the median
+cost of that one record is $0.055, $0.0042 and $0.0027. On Base
+that is 259 times below the median value the authors could
+attribute to an agent, by a proxy they themselves call ambiguous.
+98.7%, 100.0% and 99.3% of feedback carries no payment proof and
+no task linkage, counting records with no feedback file at all.
+The Validation Registry, the layer that would
+have grounded any of it, had no mainnet deployment in the window.
+
+None of that is an argument that HEXIS is better. It is the claim
+of this section made measurable: a registry that lets reputation
+be granted will see it granted. And the measurement cuts both
+ways. Every HEXIS record ever minted names three witnesses, none
+of them an independent party; they are counted at unchanged
+weights, so the witness factor W has never taken a second value
+(OPEN.md #4, open; §7). HEXIS has not solved corroboration. What
+it does is say so inside the record, and keep the condition under
+which the number would change where a reader can hold it to it.
+
 11.2 Independence from Constitutions
 
 A parallel approach places trust inside the model: a written
@@ -1087,7 +1155,7 @@ What is real: all logic, all integration, all economic design.
 |v0.3–v0.5|Complete|Core protocol, PoVC, SCS. *Federated Learning was listed here and has no implementation — corrected 2026-08-23*|
 |v0.6     |Complete|Sensitivity tiers; AI-first architectural clarity; HTTPS production (Cloudflare subdomains)|
 |v0.7     |Current |Counterparty Integrity / bilateral stake (consumer+worker, symmetric slashing, pair-frequency cap); Audit & Compliance layer (tamper-proof hash chain) — live; positioning vs registries, constitutions, regimes; red-team hardening|
-|v0.8     |Partly shipped|Second independent node (non-foundation key) — *not started*. Severity Tiers calibrated on a public incident corpus (Q2 2026) — *not started*. Proof-of-Sampling — ***deployed and live at σ=0.1 since 2026-08-17***, on a mock workload, with the selection defect corrected in §3.3. Quorum and validator stake are deployed at inert settings|
+|v0.8     |Partly shipped|Second independent node (non-foundation key) — *not started*. Severity Tiers calibrated on a public incident corpus (Q2 2026) — *not started*. Proof-of-Sampling — ***deployed and live at σ=0.1 since 2026-08-17***, on a mock workload, with the selection defect corrected in §3.3. Quorum and validator stake are deployed at inert settings. Post-quantum direction fixed 2026-10-15: SLH-DSA (FIPS 205), see Appendix D — *not started*|
 |v1.0     |Planned |Mainnet — security audit, creator disengagement|
 |v2.0+    |Future  |Dyadic trust layer for the human economy|
 
@@ -1263,6 +1331,32 @@ Dyadic Trust (v2.0+, future):
   - Not yet specified
 ```
 
+Evidence class of a record (added 2026-10-15). RAILS orders evidence
+SELF ⪯ SIGN ⪯ {WIT, REC} ⪯ ATT ⪯ PROOF — self-report; signed by
+the acting agent; witnessed by a present third party, or receipted
+by a non-interested system; attested by a hardened runner; proven —
+and grades a multi-hop chain by its weakest link [world · de
+Valois-Franklin & Bogdan, "RAILS: Verification-Native Clearing For
+Agentic Commerce", arXiv:2606.08790, §5.1 and Figure 4 · read 2026-10-15].
+Graded on that ladder, with nothing rounded up:
+
+|What a HEXIS record carries|Class|Why not higher|
+|---|---|---|
+|Delivery assertion ("delivered honestly")|SELF|Asserted by this host, which also mints|
+|Worker's RFC 9421 signature on /job/complete|SIGN|Non-repudiation, not truth. Not in the record: held in `write_signatures`, retained 90 days by policy (`SIG_RETENTION_S`)|
+|Consumer's RFC 9421 signature on /job/request|SIGN, of consent|Signs the request, not the delivery; a counterparty, not a third party. Same table, same 90 days|
+|Audit-chain row and daily seal|SIGN, by the operator|The same operator writes the row and seals it|
+|Bitcoin anchor (ots/)|— time, not truth|Proves the row existed before a block; the ladder has no class for age|
+|PoSP re-execution verdict|SELF today|The validator is this host; WIT or REC only under an independent key|
+|TEE attestation, proof of compute|none|There is no TEE and no proof-of-compute (§7)|
+
+The basis of every record minted so far is SELF. The signatures
+around it are real and do not raise it, because the claim they sign
+is not the claim the record makes — and the record does not carry
+them; they sit in a table the protocol keeps for 90 days, not in the
+bytes the CID names. The shorthand "about SELF/SIGN" is too generous
+by one rung: the weakest link decides.
+
 Appendix D: Stress Test — The 1% Adversary
 
 The network has no Byzantine threshold. It has a price list.
@@ -1292,6 +1386,11 @@ Griefing is a donation to its victims.
 
 Honest limits.
 
+The limits below are four failure modes, not a list of complaints:
+damage the stake cannot cover (the first), a judgement that cannot
+be corroborated (the second), infrastructure that cannot be lost
+(the third and the fifth), and input that is trusted (the fourth).
+Two more were added on 2026-10-15 and follow the fifth.
 
 Made-whole holds only while damage ≤ fee. A Tier 4 leak can
 inflict damage far beyond the fee. Pricing that is the work of
@@ -1350,6 +1449,56 @@ an unmeasured dependency is recorded here as open rather than
 passed. §11's standard applies to infrastructure as much as to
 registries — a dependency the protocol could not survive is a judge
 under another name.
+
+The actor model assumes a principal. "An actor is its key"
+(`/worker/register`, and the retired `/bind_pubkey`) is what makes
+an identity unforgeable, and it is also what makes an identity
+ownerless: a key is admitted on proof of possession, and nothing
+asks who possesses it. On 12 October 2026 Anthropic's Frontier Red
+Team published controlled experiments: a 9-billion-parameter model
+running inference on eight of nine consumer hardware types tested,
+a larger model running on fifteen off-brand Android TV boxes bought
+for the purpose, and end-to-end self-replication by an open-weight
+model across a firewalled cloud sandbox whose exploit step was kept
+trivial. Their own conclusion is that no full rogue replicator
+exists yet, and that on the current trend small models reach that
+level by the end of 2026 [world · Zhou &
+Freeman, Anthropic Frontier Red Team, "AI models may be capable of
+self-replicating without access to a datacenter", 2026-10-12; all
+settings controlled; the post says nothing about attribution — the
+implication drawn here is ours · read 2026-10-15]. A process with a
+key, a stake and no one behind it is a
+first-class HEXIS actor. Every penalty in this appendix — slashed
+stake, quarantine, debt, a wiped record — lands on an identity. If
+no one stands behind the identity, the penalty lands on nothing,
+and the economics above, which price betrayal against a principal
+who would feel the loss, do not apply. The protocol has no way to
+tell such an actor from one with an owner, and does not claim one.
+
+Every signature in this protocol is Ed25519, and no actor key can
+ever change. The first is a quantum exposure shared with most of
+the internet; the second is a deliberate rule (`/worker/register`:
+keys are bound at registration and cannot be changed afterwards)
+that closes the usual way out. NIST's post-quantum signature
+standards are FIPS 204, ML-DSA, module-lattice-based, and FIPS 205,
+SLH-DSA, stateless hash-based [world · NIST FIPS 204 and FIPS 205,
+both published 2024-08-13; neither document states a preference
+between the two · read 2026-10-15]. If a migration comes it will go to
+SLH-DSA: its security rests on the hash function alone, which is
+the assumption this protocol already makes everywhere else. Three
+things follow, stated separately because they have different
+shapes. The Bitcoin anchors (ots/) are hash-only, so they go on
+proving that a chain head existed before a given block even if
+Ed25519 falls — the past is held by something that does not depend
+on the signature. The seal key has a successor path
+(`successor_designation`; OPEN.md #7), so the chain's signer can
+move. Actor keys have no successor path at all: one key, one
+actor, permanently. The rule that gives an actor an unforgeable
+identity today is the rule that would leave every actor with no
+migration tomorrow. That contradiction is recorded here rather than
+resolved. Resolving it means a key-rotation protocol, and a
+key-rotation protocol is a new place to steal an identity, which is
+the reason the rule exists.
 
 
 The exposure is not the fraction of dishonest actors. It is the
