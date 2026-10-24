@@ -34,6 +34,7 @@ What is checked
     4. prev_hash of each row equals event_id of the row before it
     5. seal signatures verify against the published Foundation public key
     6. each daily_seal record points at a row that really carries that signature
+    7. the latest seal is no older than the cadence its own name declares
 
 What CANNOT be checked from here
     That the events existed before the first seal ran. A seal starts the
@@ -45,6 +46,7 @@ import argparse
 import hashlib
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -278,6 +280,43 @@ def check_seals(base_url, events, rep):
 # main
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# liveness — is anyone still here? (OPEN.md #13)
+#
+# An intact chain proves a process is running, not that an operator is. The
+# seal is the only row a human must produce; the two actions below are the
+# service writing to itself. The reader computes both ages from the public
+# chain, so a silent operator cannot suppress the number, and refuses to call
+# a stale seal healthy.
+# --------------------------------------------------------------------------
+
+MACHINE_ACTIONS = {"ledger_reconcile", "stake_expiry_sweep"}
+# The seal is named "daily". One missed day is tolerated; two is a finding.
+SEAL_CADENCE_DAYS = 2
+
+
+def liveness_ages(events, now_unix):
+    """(days since last daily_seal, days since last non-machine row); None if never."""
+    def age(rows):
+        return (now_unix - max(r["timestamp_unix"] for r in rows)) / 86400.0 if rows else None
+    return (age([e for e in events if e["action_type"] == "daily_seal"]),
+            age([e for e in events if e["action_type"] not in MACHINE_ACTIONS]))
+
+
+def check_liveness(events, rep, now_unix=None):
+    seal_age, human_age = liveness_ages(events, now_unix or time.time())
+    if human_age is not None:
+        rep.note(f"last human-originated event: {human_age:.0f} day(s) ago")
+    label = "latest seal is within its declared cadence"
+    if seal_age is None:
+        rep.fail(label, "no daily_seal row at all")
+    elif seal_age > SEAL_CADENCE_DAYS:
+        rep.fail(label, f"{seal_age:.0f} day(s) old; the seal is named daily, "
+                        f"tolerance {SEAL_CADENCE_DAYS}")
+    else:
+        rep.ok(label, f"{seal_age:.1f} day(s) old")
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Independently verify a HEXIS audit chain over HTTP.")
@@ -328,6 +367,9 @@ def main():
 
     print("\nSeal")
     check_seals(base, events, rep)
+
+    print("\nLiveness")
+    check_liveness(events, rep)
 
     print()
     failed = bool(rep.failures)
