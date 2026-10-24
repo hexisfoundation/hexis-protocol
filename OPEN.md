@@ -391,6 +391,71 @@ which the 08-23 fabrication survived for three months.
 
 Source for both: `hexis_bridge_v0.6.2.py` at commit 0e3b179 — `_posp_reward`, `mine_hexis_for_job` (witness_sources), `mine_hexis_for_consumer` (witness_sources), the Block 0 gate. Fix prepared the same day in the working tree; closes when it is deployed and the next reward record carries no consumer witness.
 
+### 13. The chain cannot tell a live project from a dead one
+
+Measured on 2026-10-18 against the full chain (2,032 events):
+
+| Last event of this kind | When | Age |
+|---|---|---|
+| `daily_seal` / `document_seal` / `ots_anchor` | 2026-08-29 | 49 days |
+| `hexis_mint`, `job_complete`, `job_request`, `stake_lock`, `worker_register` | 2026-08-17 | 61 days |
+| `sampling_open` (still pending) | 2026-08-17 | 61 days |
+| `sampling_verdict` | never | — |
+| `ledger_reconcile`, `stake_expiry_sweep` | today | 0 |
+
+Since 2026-08-29 the chain has appended 1,338 events, every one of them
+written by the service to itself. September: 0 human-originated events, 842
+machine. October: 0 and 496. `verify_audit_chain.py` says `valid: true` for
+all of it, and it is right: the chain is intact. What it verifies is that a
+process is running. Nothing on this host, in this repository, or on the public
+site measures whether anyone is there.
+
+Three things follow and each is a defect on its own:
+
+1. **The seal is named "daily" and has not run in seven weeks.** A name that
+   promises a cadence and a record that shows none is the same shape as the
+   witness strings corrected on 2026-08-23: a mechanism's name on a thing that
+   is not happening. Either the seal runs on its cadence, or the name changes
+   to what it is — a seal the operator applies when the operator appears.
+
+2. **Silence reads as health.** `/status` is green, `/audit/chain/verify` is
+   green, the boot log is green. OPEN #9 closed by making a dormant mechanism
+   *say so* at boot; OPEN #10 says a check that only runs at boot misses
+   drift that survives restarts. The same two findings apply here and
+   nothing was built: there is no number anywhere for "days since a human
+   acted", and so a 61-day gap was read, by two readers on 2026-10-15, as
+   context.
+
+3. **The operator's absence is not publicly checkable.** The one key that
+   seals is held by one person. If that person stops — laptop, illness,
+   attention — the chain keeps appending machine rows and keeps verifying,
+   and a reader has no way to learn that the signer has gone. The successor
+   designation (seq 440) exists for exactly that case and OPEN #7 records
+   that it cannot activate. So the absence that matters most is the one the
+   record is least able to show.
+
+**Closes at:** `verify_audit_chain.py` — the one thing an outside reader
+actually runs — prints the age of the last seal and of the last
+human-originated event next to its integrity verdict, and **fails the seal
+check** when the seal is older than the cadence its own name declares. The
+numbers are computed by the reader from the public chain, not reported by the
+server: a silent operator cannot suppress them, and they cost the chain
+nothing. (First drafted as a daily `liveness_report` event written by the
+bridge; dropped — that adds a machine row a day to say what every reader can
+already derive, and it needs a deploy the reader does not.)
+
+**Not closed by:** the operator sealing once this week. That resets the
+number without building the thing that reads it, which is how the number got
+to 49.
+
+**The part this cannot fix:** a report of silence is still produced by the
+silent party's own server. If the host dies, the report dies with it. The
+only reader that outlives the host is the Bitcoin anchor — which proves the
+chain existed *before* a block, never that anyone was there *after*. This
+item makes absence visible while the server runs; it does not make it
+visible when the server stops. That remains OPEN #7's problem, and OPEN #7
+closes only with a second independent operator.
+
 ### 9. Anti-concentration triggers are absolute numbers — CLOSED 2026-08-23
 
 **Both halves closed.**
